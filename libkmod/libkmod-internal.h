@@ -150,6 +150,13 @@ void kmod_module_set_required(struct kmod_module *mod, bool required) __attribut
 bool kmod_module_is_builtin(struct kmod_module *mod) __attribute__((nonnull(1)));
 
 /* libkmod-file.c */
+enum kmod_file_compression_type {
+	KMOD_FILE_COMPRESSION_NONE = 0,
+	KMOD_FILE_COMPRESSION_ZSTD,
+	KMOD_FILE_COMPRESSION_XZ,
+	KMOD_FILE_COMPRESSION_ZLIB,
+};
+
 struct kmod_file *kmod_file_open(const struct kmod_ctx *ctx, const char *filename) _must_check_ __attribute__((nonnull(1,2)));
 struct kmod_elf *kmod_file_get_elf(struct kmod_file *file) __attribute__((nonnull(1)));
 int kmod_file_load_contents(struct kmod_file *file) _must_check_ __attribute__((nonnull(1)));
