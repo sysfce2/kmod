@@ -38,20 +38,24 @@ DEFINE_TEST(depmod_modules_order_for_compressed,
 		.files = (const struct keyval[]) {
 			{ MODULES_ORDER_LIB_MODULES "/correct-modules.alias",
 			  MODULES_ORDER_LIB_MODULES "/modules.alias" },
-			{ }
+			{ },
 		},
 	});
 
 #define MODULES_OUTDIR_ROOTFS TESTSUITE_ROOTFS "test-depmod/modules-outdir"
-#define MODULES_OUTDIR_LIB_MODULES_OUTPUT MODULES_OUTDIR_ROOTFS "/outdir" MODULE_DIRECTORY "/" MODULES_UNAME
-#define MODULES_OUTDIR_LIB_MODULES_INPUT MODULES_OUTDIR_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
+#define MODULES_OUTDIR_LIB_MODULES_OUTPUT \
+	MODULES_OUTDIR_ROOTFS "/outdir" MODULE_DIRECTORY "/" MODULES_UNAME
+#define MODULES_OUTDIR_LIB_MODULES_INPUT \
+	MODULES_OUTDIR_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
 static noreturn int depmod_modules_outdir(const struct test *t)
 {
 	const char *progname = TOOLS_DIR "/depmod";
 	const char *const args[] = {
+		// clang-format off
 		progname,
 		"--outdir", MODULES_OUTDIR_ROOTFS "/outdir/",
 		NULL,
+		// clang-format on
 	};
 
 	test_spawn_prog(progname, args);
@@ -70,12 +74,13 @@ DEFINE_TEST(depmod_modules_outdir,
 			  MODULES_OUTDIR_ROOTFS "/correct-modules.dep" },
 			{ MODULES_OUTDIR_LIB_MODULES_OUTPUT "/modules.alias",
 			  MODULES_OUTDIR_ROOTFS "/correct-modules.alias" },
-			{ }
+			{ },
 		},
 	});
 
 #define SEARCH_ORDER_SIMPLE_ROOTFS TESTSUITE_ROOTFS "test-depmod/search-order-simple"
-#define SEARCH_ORDER_SIMPLE_LIB_MODULES SEARCH_ORDER_SIMPLE_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
+#define SEARCH_ORDER_SIMPLE_LIB_MODULES \
+	SEARCH_ORDER_SIMPLE_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
 static noreturn int depmod_search_order_simple(const struct test *t)
 {
 	const char *progname = TOOLS_DIR "/depmod";
@@ -97,12 +102,45 @@ DEFINE_TEST(depmod_search_order_simple,
 		.files = (const struct keyval[]) {
 			{ SEARCH_ORDER_SIMPLE_LIB_MODULES "/correct-modules.dep",
 			  SEARCH_ORDER_SIMPLE_LIB_MODULES "/modules.dep" },
-			{ }
+			{ },
 		},
 	});
 
-#define SEARCH_ORDER_SAME_PREFIX_ROOTFS TESTSUITE_ROOTFS "test-depmod/search-order-same-prefix"
-#define SEARCH_ORDER_SAME_PREFIX_LIB_MODULES SEARCH_ORDER_SAME_PREFIX_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
+#define ANOTHER_MODDIR "/foobar"
+#define MODULES_ANOTHER_MODDIR_ROOTFS TESTSUITE_ROOTFS "test-depmod/another-moddir"
+#define MODULES_ANOTHER_MODDIR_LIB_MODULES \
+	MODULES_ANOTHER_MODDIR_ROOTFS ANOTHER_MODDIR "/" MODULES_UNAME
+static noreturn int depmod_another_moddir(const struct test *t)
+{
+	const char *progname = TOOLS_DIR "/depmod";
+	const char *const args[] = {
+		progname,
+		"-m",
+		ANOTHER_MODDIR,
+		NULL,
+	};
+
+	test_spawn_prog(progname, args);
+	exit(EXIT_FAILURE);
+}
+DEFINE_TEST(depmod_another_moddir,
+	.description = "check depmod -m flag",
+	.config = {
+		[TC_UNAME_R] = MODULES_UNAME,
+		[TC_ROOTFS] = MODULES_ANOTHER_MODDIR_ROOTFS,
+	},
+	.output = {
+		.files = (const struct keyval[]) {
+			{ MODULES_ANOTHER_MODDIR_LIB_MODULES "/correct-modules.dep",
+			  MODULES_ANOTHER_MODDIR_LIB_MODULES "/modules.dep" },
+			{ },
+		},
+	});
+
+#define SEARCH_ORDER_SAME_PREFIX_ROOTFS \
+	TESTSUITE_ROOTFS "test-depmod/search-order-same-prefix"
+#define SEARCH_ORDER_SAME_PREFIX_LIB_MODULES \
+	SEARCH_ORDER_SAME_PREFIX_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
 static noreturn int depmod_search_order_same_prefix(const struct test *t)
 {
 	const char *progname = TOOLS_DIR "/depmod";
@@ -124,7 +162,7 @@ DEFINE_TEST(depmod_search_order_same_prefix,
 		.files = (const struct keyval[]) {
 			{ SEARCH_ORDER_SAME_PREFIX_LIB_MODULES "/correct-modules.dep",
 			  SEARCH_ORDER_SAME_PREFIX_LIB_MODULES "/modules.dep" },
-			{ }
+			{ },
 		},
 	});
 
@@ -151,8 +189,10 @@ DEFINE_TEST(depmod_detect_loop,
 		.err = DETECT_LOOP_ROOTFS "/correct.txt",
 	});
 
-#define SEARCH_ORDER_EXTERNAL_FIRST_ROOTFS TESTSUITE_ROOTFS "test-depmod/search-order-external-first"
-#define SEARCH_ORDER_EXTERNAL_FIRST_LIB_MODULES SEARCH_ORDER_EXTERNAL_FIRST_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
+#define SEARCH_ORDER_EXTERNAL_FIRST_ROOTFS \
+	TESTSUITE_ROOTFS "test-depmod/search-order-external-first"
+#define SEARCH_ORDER_EXTERNAL_FIRST_LIB_MODULES \
+	SEARCH_ORDER_EXTERNAL_FIRST_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
 static noreturn int depmod_search_order_external_first(const struct test *t)
 {
 	const char *progname = TOOLS_DIR "/depmod";
@@ -174,12 +214,14 @@ DEFINE_TEST(depmod_search_order_external_first,
 		.files = (const struct keyval[]) {
 			{ SEARCH_ORDER_EXTERNAL_FIRST_LIB_MODULES "/correct-modules.dep",
 			  SEARCH_ORDER_EXTERNAL_FIRST_LIB_MODULES "/modules.dep" },
-			{ }
+			{ },
 		},
 	});
 
-#define SEARCH_ORDER_EXTERNAL_LAST_ROOTFS TESTSUITE_ROOTFS "test-depmod/search-order-external-last"
-#define SEARCH_ORDER_EXTERNAL_LAST_LIB_MODULES SEARCH_ORDER_EXTERNAL_LAST_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
+#define SEARCH_ORDER_EXTERNAL_LAST_ROOTFS \
+	TESTSUITE_ROOTFS "test-depmod/search-order-external-last"
+#define SEARCH_ORDER_EXTERNAL_LAST_LIB_MODULES \
+	SEARCH_ORDER_EXTERNAL_LAST_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
 static noreturn int depmod_search_order_external_last(const struct test *t)
 {
 	const char *progname = TOOLS_DIR "/depmod";
@@ -201,12 +243,13 @@ DEFINE_TEST(depmod_search_order_external_last,
 		.files = (const struct keyval[]) {
 			{ SEARCH_ORDER_EXTERNAL_LAST_LIB_MODULES "/correct-modules.dep",
 			  SEARCH_ORDER_EXTERNAL_LAST_LIB_MODULES "/modules.dep" },
-			{ }
+			{ },
 		},
 	});
 
 #define SEARCH_ORDER_OVERRIDE_ROOTFS TESTSUITE_ROOTFS "test-depmod/search-order-override"
-#define SEARCH_ORDER_OVERRIDE_LIB_MODULES SEARCH_ORDER_OVERRIDE_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
+#define SEARCH_ORDER_OVERRIDE_LIB_MODULES \
+	SEARCH_ORDER_OVERRIDE_ROOTFS MODULE_DIRECTORY "/" MODULES_UNAME
 static noreturn int depmod_search_order_override(const struct test *t)
 {
 	const char *progname = TOOLS_DIR "/depmod";
@@ -228,7 +271,7 @@ DEFINE_TEST(depmod_search_order_override,
 		.files = (const struct keyval[]) {
 			{ SEARCH_ORDER_OVERRIDE_LIB_MODULES "/correct-modules.dep",
 			  SEARCH_ORDER_OVERRIDE_LIB_MODULES "/modules.dep" },
-			{ }
+			{ },
 		},
 	});
 
@@ -255,7 +298,7 @@ DEFINE_TEST(depmod_check_weakdep,
 		.files = (const struct keyval[]) {
 			{ CHECK_WEAKDEP_LIB_MODULES "/correct-modules.weakdep",
 			  CHECK_WEAKDEP_LIB_MODULES "/modules.weakdep" },
-			{ }
+			{ },
 		},
 	});
 

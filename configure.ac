@@ -39,8 +39,8 @@ AC_PROG_CC_C99
 # Function and structure checks
 #####################################################################
 
-AC_CHECK_FUNCS_ONCE(__xstat)
-AC_CHECK_FUNCS_ONCE([__secure_getenv secure_getenv])
+AC_CHECK_FUNCS_ONCE([open64 stat64 fopen64 __stat64_time64])
+AC_CHECK_FUNCS_ONCE([secure_getenv])
 
 CC_CHECK_FUNC_BUILTIN([__builtin_clz])
 CC_CHECK_FUNC_BUILTIN([__builtin_types_compatible_p])
@@ -53,6 +53,7 @@ AC_CHECK_MEMBERS([struct stat.st_mtim], [], [], [#include <sys/stat.h>])
 # basename may be only available in libgen.h with the POSIX behavior,
 # not desired here
 AC_CHECK_DECLS_ONCE([[basename]], [], [], [[#include <string.h>]])
+AC_CHECK_DECLS_ONCE([[__xstat]], [], [], [[#include <sys/stat.h]])
 
 AC_MSG_CHECKING([whether _Static_assert() is supported])
 AC_COMPILE_IFELSE(
@@ -162,6 +163,22 @@ AC_ARG_WITH([bashcompletiondir],
 	])])
 AC_SUBST([bashcompletiondir], [$with_bashcompletiondir])
 
+AC_ARG_WITH([fishcompletiondir],
+	AS_HELP_STRING([--with-fishcompletiondir=DIR], [Fish completions directory]),
+	[],
+	[AS_IF([$($PKG_CONFIG --exists fish)], [
+		with_fishcompletiondir=$($PKG_CONFIG --variable=completionsdir fish)
+	] , [
+		with_fishcompletiondir=${datadir}/fish/vendor_functions.d
+	])])
+AC_SUBST([fishcompletiondir], [$with_fishcompletiondir])
+
+AC_ARG_WITH([zshcompletiondir],
+	AS_HELP_STRING([--with-zshcompletiondir=DIR], [Zsh completions directory]),
+	[],
+	[with_zshcompletiondir=${datadir}/zsh/site-functions])
+AC_SUBST([zshcompletiondir], [$with_zshcompletiondir])
+
 #####################################################################
 # --enable-
 #####################################################################
@@ -262,7 +279,6 @@ CC_CHECK_FLAGS_APPEND(with_cflags, [CFLAGS], [\
 		       -Wno-overlength-strings \
 		       -Wno-unused-parameter \
 		       -Wno-missing-field-initializers \
-		       -Wno-unused-result \
 		       -Wnested-externs \
 		       -Wchar-subscripts \
 		       -Wtype-limits \

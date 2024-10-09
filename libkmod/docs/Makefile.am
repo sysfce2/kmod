@@ -9,19 +9,19 @@ DOC_MAIN_SGML_FILE = $(DOC_MODULE)-docs.xml
 
 DOC_SOURCE_DIR = $(top_srcdir)/libkmod
 
-SCAN_OPTIONS = --ignore-decorators="__must_check|KMOD_EXPORT"
+SCAN_OPTIONS = --ignore-decorators="KMOD_EXPORT"
 
-MKDB_OPTIONS = --xml-mode --output-format=xml --name-space kmod --tmpl-dir=.
-
-MKTMPL_OPTIONS = --output-dir=.
+MKDB_OPTIONS = --xml-mode --output-format=xml --name-space kmod
 
 MKHTML_OPTIONS = --path=$(abs_srcdir)/doc --path=$(abs_builddir)/doc
 
 HFILE_GLOB = $(top_srcdir)/libkmod/libkmod.h
 CFILE_GLOB = $(top_srcdir)/libkmod/libkmod.c $(top_srcdir)/libkmod/libkmod-module.c $(top_srcdir)/libkmod/libkmod-list.c
 
-IGNORE_HFILES = libkmod-internal.h \
-		libkmod-index.h
+IGNORE_HFILES = \
+	libkmod-index.h \
+	libkmod-internal-file.h \
+	libkmod-internal.h
 
 content_files = version.xml
 

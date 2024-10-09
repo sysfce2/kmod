@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fnmatch.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +35,7 @@
 #define INDEX_MAGIC 0xB007F457
 #define INDEX_VERSION_MAJOR 0x0002
 #define INDEX_VERSION_MINOR 0x0001
-#define INDEX_VERSION ((INDEX_VERSION_MAJOR<<16)|INDEX_VERSION_MINOR)
+#define INDEX_VERSION ((INDEX_VERSION_MAJOR << 16) | INDEX_VERSION_MINOR)
 
 /* The index file maps keys to values. Both keys and values are ASCII strings.
  * Each key can have multiple values. Values are sorted by an integer priority.
@@ -86,7 +87,7 @@
  *
  * == Key ==
  *  + Normal node
- *  * Marked node, representing a key and it's values.
+ *  * Marked node, representing a key and its values.
  *
  * +
  * |-a-+-s-+-k-*
@@ -100,7 +101,7 @@
  * Naive implementations tend to be very space inefficient; child pointers
  * are stored in arrays indexed by character, but most child pointers are null.
  *
- * Our implementation uses a scheme described by Wikipedia as a Patrica trie,
+ * Our implementation uses a scheme described by Wikipedia as a Patricia trie,
  *
  *     "easiest to understand as a space-optimized trie where
  *      each node with only one child is merged with its child"
@@ -117,7 +118,7 @@
  * We still use arrays of child pointers indexed by a single character;
  * the remaining characters of the label are stored as a "prefix" in the child.
  *
- * The paper describing the original Patrica trie works on individual bits -
+ * The paper describing the original Patricia trie works on individual bits -
  * each node has a maximum of two children, which increases space efficiency.
  * However for this application it is simpler to use the ASCII character set.
  * Since the index file is read-only, it can be compressed by omitting null
@@ -126,12 +127,12 @@
 
 /* Format of node offsets within index file */
 enum node_offset {
-	INDEX_NODE_FLAGS    = 0xF0000000, /* Flags in high nibble */
-	INDEX_NODE_PREFIX   = 0x80000000,
+	INDEX_NODE_FLAGS = 0xF0000000, /* Flags in high nibble */
+	INDEX_NODE_PREFIX = 0x80000000,
 	INDEX_NODE_VALUES = 0x40000000,
-	INDEX_NODE_CHILDS   = 0x20000000,
+	INDEX_NODE_CHILDS = 0x20000000,
 
-	INDEX_NODE_MASK     = 0x0FFFFFFF, /* Offset value */
+	INDEX_NODE_MASK = 0x0FFFFFFF, /* Offset value */
 };
 
 void index_values_free(struct index_value *values)
@@ -144,8 +145,8 @@ void index_values_free(struct index_value *values)
 	}
 }
 
-static int add_value(struct index_value **values,
-		     const char *value, unsigned len, unsigned int priority)
+static int add_value(struct index_value **values, const char *value, size_t len,
+		     unsigned int priority)
 {
 	struct index_value *v;
 
@@ -166,12 +167,6 @@ static int add_value(struct index_value **values,
 	return 0;
 }
 
-static void read_error(void)
-{
-	fatal("Module index: unexpected error: %s\n"
-			"Try re-running depmod\n", errno ? strerror(errno) : "EOF");
-}
-
 static int read_char(FILE *in)
 {
 	int ch;
@@ -179,28 +174,31 @@ static int read_char(FILE *in)
 	errno = 0;
 	ch = getc_unlocked(in);
 	if (ch == EOF)
-		read_error();
+		errno = EINVAL;
 	return ch;
 }
 
-static uint32_t read_long(FILE *in)
+static int read_u32(FILE *in, uint32_t *l)
 {
-	uint32_t l;
+	uint32_t val;
 
 	errno = 0;
-	if (fread(&l, sizeof(uint32_t), 1, in) != sizeof(uint32_t))
-		read_error();
-	return ntohl(l);
+	if (fread(&val, sizeof(uint32_t), 1, in) != 1) {
+		errno = EINVAL;
+		return -1;
+	}
+	*l = ntohl(val);
+	return 1;
 }
 
-static unsigned buf_freadchars(struct strbuf *buf, FILE *in)
+static ssize_t buf_freadchars(struct strbuf *buf, FILE *in)
 {
-	unsigned i = 0;
+	ssize_t i = 0;
 	int ch;
 
 	while ((ch = read_char(in))) {
-		if (!strbuf_pushchar(buf, ch))
-			break;
+		if (ch == EOF || !strbuf_pushchar(buf, ch))
+			return -1;
 		i++;
 	}
 
@@ -212,17 +210,17 @@ static unsigned buf_freadchars(struct strbuf *buf, FILE *in)
  */
 struct index_node_f {
 	FILE *file;
-	char *prefix;		/* path compression */
+	char *prefix; /* path compression */
 	struct index_value *values;
-	unsigned char first;	/* range of child nodes */
+	unsigned char first; /* range of child nodes */
 	unsigned char last;
 	uint32_t children[0];
 };
 
 static struct index_node_f *index_read(FILE *in, uint32_t offset)
 {
-	struct index_node_f *node;
-	char *prefix;
+	struct index_node_f *node = NULL;
+	char *prefix = NULL;
 	int i, child_count = 0;
 
 	if ((offset & INDEX_NODE_MASK) == 0)
@@ -234,44 +232,67 @@ static struct index_node_f *index_read(FILE *in, uint32_t offset)
 	if (offset & INDEX_NODE_PREFIX) {
 		struct strbuf buf;
 		strbuf_init(&buf);
-		buf_freadchars(&buf, in);
+		if (buf_freadchars(&buf, in) < 0) {
+			strbuf_release(&buf);
+			return NULL;
+		}
 		prefix = strbuf_steal(&buf);
 	} else
-		prefix = NOFAIL(strdup(""));
+		prefix = strdup("");
+
+	if (prefix == NULL)
+		goto err;
 
 	if (offset & INDEX_NODE_CHILDS) {
-		char first = read_char(in);
-		char last = read_char(in);
+		int first = read_char(in);
+		int last = read_char(in);
+
+		if (first == EOF || last == EOF || first > last)
+			goto err;
+
 		child_count = last - first + 1;
 
-		node = NOFAIL(malloc(sizeof(struct index_node_f) +
-				     sizeof(uint32_t) * child_count));
+		node = malloc(sizeof(struct index_node_f) +
+			      sizeof(uint32_t) * child_count);
+		if (node == NULL)
+			goto err;
 
-		node->first = first;
-		node->last = last;
+		node->first = (unsigned char)first;
+		node->last = (unsigned char)last;
 
 		for (i = 0; i < child_count; i++)
-			node->children[i] = read_long(in);
+			if (read_u32(in, &node->children[i]) < 0)
+				goto err;
 	} else {
-		node = NOFAIL(malloc(sizeof(struct index_node_f)));
+		node = malloc(sizeof(struct index_node_f));
+		if (node == NULL)
+			goto err;
+
 		node->first = INDEX_CHILDMAX;
 		node->last = 0;
 	}
 
 	node->values = NULL;
 	if (offset & INDEX_NODE_VALUES) {
-		int value_count;
+		uint32_t value_count;
 		struct strbuf buf;
 		const char *value;
 		unsigned int priority;
 
-		value_count = read_long(in);
+		if (read_u32(in, &value_count) < 0)
+			goto err;
 
 		strbuf_init(&buf);
 		while (value_count--) {
-			priority = read_long(in);
-			buf_freadchars(&buf, in);
+			if (read_u32(in, &priority) < 0 || buf_freadchars(&buf, in) < 0) {
+				strbuf_release(&buf);
+				goto err;
+			}
 			value = strbuf_str(&buf);
+			if (value == NULL) {
+				strbuf_release(&buf);
+				goto err;
+			}
 			add_value(&node->values, value, buf.used, priority);
 			strbuf_clear(&buf);
 		}
@@ -281,6 +302,10 @@ static struct index_node_f *index_read(FILE *in, uint32_t offset)
 	node->prefix = prefix;
 	node->file = in;
 	return node;
+err:
+	free(prefix);
+	free(node);
+	return NULL;
 }
 
 static void index_close(struct index_node_f *node)
@@ -306,24 +331,27 @@ struct index_file *index_file_open(const char *filename)
 		return NULL;
 	errno = EINVAL;
 
-	magic = read_long(file);
-	if (magic != INDEX_MAGIC) {
-		fclose(file);
-		return NULL;
-	}
+	if (read_u32(file, &magic) < 0 || magic != INDEX_MAGIC)
+		goto err;
 
-	version = read_long(file);
-	if (version >> 16 != INDEX_VERSION_MAJOR) {
-		fclose(file);
-		return NULL;
-	}
+	if (read_u32(file, &version) < 0 || version >> 16 != INDEX_VERSION_MAJOR)
+		goto err;
 
-	new = NOFAIL(malloc(sizeof(struct index_file)));
+	new = malloc(sizeof(struct index_file));
+	if (new == NULL)
+		goto err;
+
 	new->file = file;
-	new->root_offset = read_long(new->file);
+	if (read_u32(new->file, &new->root_offset) < 0) {
+		free(new);
+		goto err;
+	}
 
 	errno = 0;
 	return new;
+err:
+	fclose(file);
+	return NULL;
 }
 
 void index_file_close(struct index_file *idx)
@@ -337,22 +365,20 @@ static struct index_node_f *index_readroot(struct index_file *in)
 	return index_read(in->file, in->root_offset);
 }
 
-static struct index_node_f *index_readchild(const struct index_node_f *parent,
-					    int ch)
+static struct index_node_f *index_readchild(const struct index_node_f *parent, int ch)
 {
 	if (parent->first <= ch && ch <= parent->last) {
-		return index_read(parent->file,
-		                       parent->children[ch - parent->first]);
+		return index_read(parent->file, parent->children[ch - parent->first]);
 	}
 
 	return NULL;
 }
 
-static void index_dump_node(struct index_node_f *node, struct strbuf *buf,
-								int fd)
+static void index_dump_node(struct index_node_f *node, struct strbuf *buf, int fd)
 {
 	struct index_value *v;
-	int ch, pushed;
+	size_t pushed;
+	int ch;
 
 	pushed = strbuf_pushchars(buf, node->prefix);
 
@@ -369,9 +395,10 @@ static void index_dump_node(struct index_node_f *node, struct strbuf *buf,
 		if (!child)
 			continue;
 
-		strbuf_pushchar(buf, ch);
-		index_dump_node(child, buf, fd);
-		strbuf_popchar(buf);
+		if (strbuf_pushchar(buf, ch)) {
+			index_dump_node(child, buf, fd);
+			strbuf_popchar(buf);
+		}
 	}
 
 	strbuf_popchars(buf, pushed);
@@ -388,8 +415,8 @@ void index_dump(struct index_file *in, int fd, const char *prefix)
 		return;
 
 	strbuf_init(&buf);
-	strbuf_pushchars(&buf, prefix);
-	index_dump_node(root, &buf, fd);
+	if (strbuf_pushchars(&buf, prefix))
+		index_dump_node(root, &buf, fd);
 	strbuf_release(&buf);
 }
 
@@ -400,11 +427,11 @@ static char *index_search__node(struct index_node_f *node, const char *key, int 
 	int ch;
 	int j;
 
-	while(node) {
+	while (node) {
 		for (j = 0; node->prefix[j]; j++) {
 			ch = node->prefix[j];
 
-			if (ch != key[i+j]) {
+			if (ch != key[i + j]) {
 				index_close(node);
 				return NULL;
 			}
@@ -413,9 +440,8 @@ static char *index_search__node(struct index_node_f *node, const char *key, int 
 		i += j;
 
 		if (key[i] == '\0') {
-			value = node->values != NULL
-				? strdup(node->values[0].value)
-				: NULL;
+			value = node->values != NULL ? strdup(node->values[0].value) :
+						       NULL;
 
 			index_close(node);
 			return value;
@@ -439,7 +465,7 @@ static char *index_search__node(struct index_node_f *node, const char *key, int 
  */
 char *index_search(struct index_file *in, const char *key)
 {
-// FIXME: return value by reference instead of strdup
+	// FIXME: return value by reference instead of strdup
 	struct index_node_f *root;
 	char *value;
 
@@ -448,8 +474,6 @@ char *index_search(struct index_file *in, const char *key)
 
 	return value;
 }
-
-
 
 /* Level 4: add all the values from a matching node */
 static void index_searchwild__allvalues(struct index_node_f *node,
@@ -467,19 +491,16 @@ static void index_searchwild__allvalues(struct index_node_f *node,
  * Level 3: traverse a sub-keyspace which starts with a wildcard,
  * looking for matches.
  */
-static void index_searchwild__all(struct index_node_f *node, int j,
-				  struct strbuf *buf,
-				  const char *subkey,
-				  struct index_value **out)
+static void index_searchwild__all(struct index_node_f *node, int j, struct strbuf *buf,
+				  const char *subkey, struct index_value **out)
 {
-	int pushed = 0;
+	size_t pushed = 0;
 	int ch;
 
 	while (node->prefix[j]) {
 		ch = node->prefix[j];
 
-		strbuf_pushchar(buf, ch);
-		pushed++;
+		pushed += strbuf_pushchar(buf, ch);
 		j++;
 	}
 
@@ -489,13 +510,16 @@ static void index_searchwild__all(struct index_node_f *node, int j,
 		if (!child)
 			continue;
 
-		strbuf_pushchar(buf, ch);
-		index_searchwild__all(child, 0, buf, subkey, out);
-		strbuf_popchar(buf);
+		if (strbuf_pushchar(buf, ch)) {
+			index_searchwild__all(child, 0, buf, subkey, out);
+			strbuf_popchar(buf);
+		}
 	}
 
 	if (node->values) {
-		if (fnmatch(strbuf_str(buf), subkey, 0) == 0)
+		const char *s = strbuf_str(buf);
+
+		if (s != NULL && fnmatch(s, subkey, 0) == 0)
 			index_searchwild__allvalues(node, out);
 		else
 			index_close(node);
@@ -507,26 +531,23 @@ static void index_searchwild__all(struct index_node_f *node, int j,
 }
 
 /* Level 2: descend the tree (until we hit a wildcard) */
-static void index_searchwild__node(struct index_node_f *node,
-				   struct strbuf *buf,
-				   const char *key, int i,
-				   struct index_value **out)
+static void index_searchwild__node(struct index_node_f *node, struct strbuf *buf,
+				   const char *key, int i, struct index_value **out)
 {
 	struct index_node_f *child;
 	int j;
 	int ch;
 
-	while(node) {
+	while (node) {
 		for (j = 0; node->prefix[j]; j++) {
 			ch = node->prefix[j];
 
 			if (ch == '*' || ch == '?' || ch == '[') {
-				index_searchwild__all(node, j, buf,
-						      &key[i+j], out);
+				index_searchwild__all(node, j, buf, &key[i + j], out);
 				return;
 			}
 
-			if (ch != key[i+j]) {
+			if (ch != key[i + j]) {
 				index_close(node);
 				return;
 			}
@@ -536,23 +557,26 @@ static void index_searchwild__node(struct index_node_f *node,
 
 		child = index_readchild(node, '*');
 		if (child) {
-			strbuf_pushchar(buf, '*');
-			index_searchwild__all(child, 0, buf, &key[i], out);
-			strbuf_popchar(buf);
+			if (strbuf_pushchar(buf, '*')) {
+				index_searchwild__all(child, 0, buf, &key[i], out);
+				strbuf_popchar(buf);
+			}
 		}
 
 		child = index_readchild(node, '?');
 		if (child) {
-			strbuf_pushchar(buf, '?');
-			index_searchwild__all(child, 0, buf, &key[i], out);
-			strbuf_popchar(buf);
+			if (strbuf_pushchar(buf, '?')) {
+				index_searchwild__all(child, 0, buf, &key[i], out);
+				strbuf_popchar(buf);
+			}
 		}
 
 		child = index_readchild(node, '[');
 		if (child) {
-			strbuf_pushchar(buf, '[');
-			index_searchwild__all(child, 0, buf, &key[i], out);
-			strbuf_popchar(buf);
+			if (strbuf_pushchar(buf, '[')) {
+				index_searchwild__all(child, 0, buf, &key[i], out);
+				strbuf_popchar(buf);
+			}
 		}
 
 		if (key[i] == '\0') {
@@ -605,13 +629,13 @@ struct index_mm {
 
 struct index_mm_value {
 	unsigned int priority;
-	unsigned int len;
+	size_t len;
 	const char *value;
 };
 
 struct index_mm_value_array {
 	struct index_mm_value *values;
-	unsigned int len;
+	size_t len;
 };
 
 struct index_mm_node {
@@ -623,13 +647,13 @@ struct index_mm_node {
 	uint32_t children[];
 };
 
-static inline uint32_t read_long_mm(void **p)
+static inline uint32_t read_u32_mm(void **p)
 {
 	uint8_t *addr = *(uint8_t **)p;
 	uint32_t v;
 
 	/* addr may be unalined to uint32_t */
-	v = get_unaligned((uint32_t *) addr);
+	v = get_unaligned((uint32_t *)addr);
 
 	*p = addr + sizeof(uint32_t);
 	return ntohl(v);
@@ -643,7 +667,7 @@ static inline uint8_t read_char_mm(void **p)
 	return v;
 }
 
-static inline char *read_chars_mm(void **p, unsigned *rlen)
+static inline char *read_chars_mm(void **p, size_t *rlen)
 {
 	char *addr = *(char **)p;
 	size_t len = *rlen = strlen(addr);
@@ -651,8 +675,8 @@ static inline char *read_chars_mm(void **p, unsigned *rlen)
 	return addr;
 }
 
-static struct index_mm_node *index_mm_read_node(struct index_mm *idx,
-							uint32_t offset) {
+static struct index_mm_node *index_mm_read_node(struct index_mm *idx, uint32_t offset)
+{
 	void *p = idx->mm;
 	struct index_mm_node *node;
 	const char *prefix;
@@ -666,7 +690,7 @@ static struct index_mm_node *index_mm_read_node(struct index_mm *idx,
 	p = (char *)p + (offset & INDEX_NODE_MASK);
 
 	if (offset & INDEX_NODE_PREFIX) {
-		unsigned len;
+		size_t len;
 		prefix = read_chars_mm(&p, &len);
 	} else
 		prefix = _idx_empty_str;
@@ -674,26 +698,30 @@ static struct index_mm_node *index_mm_read_node(struct index_mm *idx,
 	if (offset & INDEX_NODE_CHILDS) {
 		first = read_char_mm(&p);
 		last = read_char_mm(&p);
+
+		if (first > last || first < 0 || last < 0)
+			return NULL;
+
 		child_count = last - first + 1;
 		for (i = 0; i < child_count; i++)
-			children[i] = read_long_mm(&p);
+			children[i] = read_u32_mm(&p);
 	} else {
 		first = INDEX_CHILDMAX;
 		last = 0;
 		child_count = 0;
 	}
 
-	children_padding = (sizeof(struct index_mm_node) +
-			    (sizeof(uint32_t) * child_count)) % sizeof(void *);
+	children_padding =
+		(sizeof(struct index_mm_node) + (sizeof(uint32_t) * child_count)) %
+		sizeof(void *);
 
 	if (offset & INDEX_NODE_VALUES)
-		value_count = read_long_mm(&p);
+		value_count = read_u32_mm(&p);
 	else
 		value_count = 0;
 
-	node = malloc(sizeof(struct index_mm_node)
-		      + sizeof(uint32_t) * child_count + children_padding
-		      + sizeof(struct index_mm_value) * value_count);
+	node = malloc(sizeof(struct index_mm_node) + sizeof(uint32_t) * child_count +
+		      children_padding + sizeof(struct index_mm_value) * value_count);
 	if (node == NULL)
 		return NULL;
 
@@ -702,9 +730,11 @@ static struct index_mm_node *index_mm_read_node(struct index_mm *idx,
 	if (value_count == 0)
 		node->values.values = NULL;
 	else {
-		node->values.values = (struct index_mm_value *)
-			((char *)node + sizeof(struct index_mm_node) +
-			 sizeof(uint32_t) * child_count + children_padding);
+		node->values.values =
+			(struct index_mm_value *)((char *)node +
+						  sizeof(struct index_mm_node) +
+						  sizeof(uint32_t) * child_count +
+						  children_padding);
 	}
 	node->values.len = value_count;
 	node->first = first;
@@ -713,7 +743,7 @@ static struct index_mm_node *index_mm_read_node(struct index_mm *idx,
 
 	for (i = 0; i < value_count; i++) {
 		struct index_mm_value *v = node->values.values + i;
-		v->priority = read_long_mm(&p);
+		v->priority = read_u32_mm(&p);
 		v->value = read_chars_mm(&p, &v->len);
 	}
 
@@ -748,40 +778,44 @@ int index_mm_open(const struct kmod_ctx *ctx, const char *filename,
 		return -ENOMEM;
 	}
 
-	if ((fd = open(filename, O_RDONLY|O_CLOEXEC)) < 0) {
+	if ((fd = open(filename, O_RDONLY | O_CLOEXEC)) < 0) {
 		DBG(ctx, "open(%s, O_RDONLY|O_CLOEXEC): %m\n", filename);
 		err = -errno;
 		goto fail_open;
 	}
 
-	if (fstat(fd, &st) < 0 || (size_t) st.st_size < sizeof(hdr)) {
+	if (fstat(fd, &st) < 0 || st.st_size < (off_t)sizeof(hdr)) {
 		err = -EINVAL;
+		goto fail_nommap;
+	}
+
+	if ((uintmax_t)st.st_size > SIZE_MAX) {
+		err = -ENOMEM;
 		goto fail_nommap;
 	}
 
 	idx->mm = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (idx->mm == MAP_FAILED) {
-		ERR(ctx, "mmap(NULL, %"PRIu64", PROT_READ, %d, MAP_PRIVATE, 0): %m\n",
-							st.st_size, fd);
+		ERR(ctx, "mmap(NULL, %" PRIu64 ", PROT_READ, MAP_PRIVATE, %d, 0): %m\n",
+		    (uint64_t)st.st_size, fd);
 		err = -errno;
 		goto fail_nommap;
 	}
 
 	p = idx->mm;
-	hdr.magic = read_long_mm(&p);
-	hdr.version = read_long_mm(&p);
-	hdr.root_offset = read_long_mm(&p);
+	hdr.magic = read_u32_mm(&p);
+	hdr.version = read_u32_mm(&p);
+	hdr.root_offset = read_u32_mm(&p);
 
 	if (hdr.magic != INDEX_MAGIC) {
-		ERR(ctx, "magic check fail: %x instead of %x\n", hdr.magic,
-								INDEX_MAGIC);
+		ERR(ctx, "magic check fail: %x instead of %x\n", hdr.magic, INDEX_MAGIC);
 		err = -EINVAL;
 		goto fail;
 	}
 
 	if (hdr.version >> 16 != INDEX_VERSION_MAJOR) {
 		ERR(ctx, "major version check fail: %u instead of %u\n",
-					hdr.version >> 16, INDEX_VERSION_MAJOR);
+		    hdr.version >> 16, INDEX_VERSION_MAJOR);
 		err = -EINVAL;
 		goto fail;
 	}
@@ -816,22 +850,21 @@ static struct index_mm_node *index_mm_readroot(struct index_mm *idx)
 	return index_mm_read_node(idx, idx->root_offset);
 }
 
-static struct index_mm_node *index_mm_readchild(const struct index_mm_node *parent,
-									int ch)
+static struct index_mm_node *index_mm_readchild(const struct index_mm_node *parent, int ch)
 {
 	if (parent->first <= ch && ch <= parent->last) {
 		return index_mm_read_node(parent->idx,
-					parent->children[ch - parent->first]);
+					  parent->children[ch - parent->first]);
 	}
 
 	return NULL;
 }
 
-static void index_mm_dump_node(struct index_mm_node *node, struct strbuf *buf,
-								int fd)
+static void index_mm_dump_node(struct index_mm_node *node, struct strbuf *buf, int fd)
 {
 	struct index_mm_value *itr, *itr_end;
-	int ch, pushed;
+	size_t pushed;
+	int ch;
 
 	pushed = strbuf_pushchars(buf, node->prefix);
 
@@ -850,9 +883,10 @@ static void index_mm_dump_node(struct index_mm_node *node, struct strbuf *buf,
 		if (child == NULL)
 			continue;
 
-		strbuf_pushchar(buf, ch);
-		index_mm_dump_node(child, buf, fd);
-		strbuf_popchar(buf);
+		if (strbuf_pushchar(buf, ch)) {
+			index_mm_dump_node(child, buf, fd);
+			strbuf_popchar(buf);
+		}
 	}
 
 	strbuf_popchars(buf, pushed);
@@ -869,24 +903,23 @@ void index_mm_dump(struct index_mm *idx, int fd, const char *prefix)
 		return;
 
 	strbuf_init(&buf);
-	strbuf_pushchars(&buf, prefix);
-	index_mm_dump_node(root, &buf, fd);
+	if (strbuf_pushchars(&buf, prefix))
+		index_mm_dump_node(root, &buf, fd);
 	strbuf_release(&buf);
 }
 
-static char *index_mm_search_node(struct index_mm_node *node, const char *key,
-									int i)
+static char *index_mm_search_node(struct index_mm_node *node, const char *key, int i)
 {
 	char *value;
 	struct index_mm_node *child;
 	int ch;
 	int j;
 
-	while(node) {
+	while (node) {
 		for (j = 0; node->prefix[j]; j++) {
 			ch = node->prefix[j];
 
-			if (ch != key[i+j]) {
+			if (ch != key[i + j]) {
 				index_mm_free_node(node);
 				return NULL;
 			}
@@ -895,9 +928,9 @@ static char *index_mm_search_node(struct index_mm_node *node, const char *key,
 		i += j;
 
 		if (key[i] == '\0') {
-			value = node->values.len > 0
-				? strdup(node->values.values[0].value)
-				: NULL;
+			value = node->values.len > 0 ?
+					strdup(node->values.values[0].value) :
+					NULL;
 
 			index_mm_free_node(node);
 			return value;
@@ -921,7 +954,7 @@ static char *index_mm_search_node(struct index_mm_node *node, const char *key,
  */
 char *index_mm_search(struct index_mm *idx, const char *key)
 {
-// FIXME: return value by reference instead of strdup
+	// FIXME: return value by reference instead of strdup
 	struct index_mm_node *root;
 	char *value;
 
@@ -933,7 +966,7 @@ char *index_mm_search(struct index_mm *idx, const char *key)
 
 /* Level 4: add all the values from a matching node */
 static void index_mm_searchwild_allvalues(struct index_mm_node *node,
-						struct index_value **out)
+					  struct index_value **out)
 {
 	struct index_mm_value *itr, *itr_end;
 
@@ -949,19 +982,16 @@ static void index_mm_searchwild_allvalues(struct index_mm_node *node,
  * Level 3: traverse a sub-keyspace which starts with a wildcard,
  * looking for matches.
  */
-static void index_mm_searchwild_all(struct index_mm_node *node, int j,
-					  struct strbuf *buf,
-					  const char *subkey,
-					  struct index_value **out)
+static void index_mm_searchwild_all(struct index_mm_node *node, int j, struct strbuf *buf,
+				    const char *subkey, struct index_value **out)
 {
-	int pushed = 0;
+	size_t pushed = 0;
 	int ch;
 
 	while (node->prefix[j]) {
 		ch = node->prefix[j];
 
-		strbuf_pushchar(buf, ch);
-		pushed++;
+		pushed += strbuf_pushchar(buf, ch);
 		j++;
 	}
 
@@ -971,13 +1001,16 @@ static void index_mm_searchwild_all(struct index_mm_node *node, int j,
 		if (!child)
 			continue;
 
-		strbuf_pushchar(buf, ch);
-		index_mm_searchwild_all(child, 0, buf, subkey, out);
-		strbuf_popchar(buf);
+		if (strbuf_pushchar(buf, ch)) {
+			index_mm_searchwild_all(child, 0, buf, subkey, out);
+			strbuf_popchar(buf);
+		}
 	}
 
 	if (node->values.len > 0) {
-		if (fnmatch(strbuf_str(buf), subkey, 0) == 0)
+		const char *s = strbuf_str(buf);
+
+		if (s != NULL && fnmatch(s, subkey, 0) == 0)
 			index_mm_searchwild_allvalues(node, out);
 		else
 			index_mm_free_node(node);
@@ -989,26 +1022,23 @@ static void index_mm_searchwild_all(struct index_mm_node *node, int j,
 }
 
 /* Level 2: descend the tree (until we hit a wildcard) */
-static void index_mm_searchwild_node(struct index_mm_node *node,
-					   struct strbuf *buf,
-					   const char *key, int i,
-					   struct index_value **out)
+static void index_mm_searchwild_node(struct index_mm_node *node, struct strbuf *buf,
+				     const char *key, int i, struct index_value **out)
 {
 	struct index_mm_node *child;
 	int j;
 	int ch;
 
-	while(node) {
+	while (node) {
 		for (j = 0; node->prefix[j]; j++) {
 			ch = node->prefix[j];
 
 			if (ch == '*' || ch == '?' || ch == '[') {
-				index_mm_searchwild_all(node, j, buf,
-						      &key[i+j], out);
+				index_mm_searchwild_all(node, j, buf, &key[i + j], out);
 				return;
 			}
 
-			if (ch != key[i+j]) {
+			if (ch != key[i + j]) {
 				index_mm_free_node(node);
 				return;
 			}
@@ -1018,23 +1048,26 @@ static void index_mm_searchwild_node(struct index_mm_node *node,
 
 		child = index_mm_readchild(node, '*');
 		if (child) {
-			strbuf_pushchar(buf, '*');
-			index_mm_searchwild_all(child, 0, buf, &key[i], out);
-			strbuf_popchar(buf);
+			if (strbuf_pushchar(buf, '*')) {
+				index_mm_searchwild_all(child, 0, buf, &key[i], out);
+				strbuf_popchar(buf);
+			}
 		}
 
 		child = index_mm_readchild(node, '?');
 		if (child) {
-			strbuf_pushchar(buf, '?');
-			index_mm_searchwild_all(child, 0, buf, &key[i], out);
-			strbuf_popchar(buf);
+			if (strbuf_pushchar(buf, '?')) {
+				index_mm_searchwild_all(child, 0, buf, &key[i], out);
+				strbuf_popchar(buf);
+			}
 		}
 
 		child = index_mm_readchild(node, '[');
 		if (child) {
-			strbuf_pushchar(buf, '[');
-			index_mm_searchwild_all(child, 0, buf, &key[i], out);
-			strbuf_popchar(buf);
+			if (strbuf_pushchar(buf, '[')) {
+				index_mm_searchwild_all(child, 0, buf, &key[i], out);
+				strbuf_popchar(buf);
+			}
 		}
 
 		if (key[i] == '\0') {

@@ -55,76 +55,84 @@ const char *kmod_blacklist_get_modname(const struct kmod_list *l)
 	return l->data;
 }
 
-const char *kmod_alias_get_name(const struct kmod_list *l) {
+const char *kmod_alias_get_name(const struct kmod_list *l)
+{
 	const struct kmod_alias *alias = l->data;
 	return alias->name;
 }
 
-const char *kmod_alias_get_modname(const struct kmod_list *l) {
+const char *kmod_alias_get_modname(const struct kmod_list *l)
+{
 	const struct kmod_alias *alias = l->data;
 	return alias->modname;
 }
 
-const char *kmod_option_get_options(const struct kmod_list *l) {
+const char *kmod_option_get_options(const struct kmod_list *l)
+{
 	const struct kmod_options *alias = l->data;
 	return alias->options;
 }
 
-const char *kmod_option_get_modname(const struct kmod_list *l) {
+const char *kmod_option_get_modname(const struct kmod_list *l)
+{
 	const struct kmod_options *alias = l->data;
 	return alias->modname;
 }
 
-const char *kmod_command_get_command(const struct kmod_list *l) {
+const char *kmod_command_get_command(const struct kmod_list *l)
+{
 	const struct kmod_command *alias = l->data;
 	return alias->command;
 }
 
-const char *kmod_command_get_modname(const struct kmod_list *l) {
+const char *kmod_command_get_modname(const struct kmod_list *l)
+{
 	const struct kmod_command *alias = l->data;
 	return alias->modname;
 }
 
-const char *kmod_softdep_get_name(const struct kmod_list *l) {
+const char *kmod_softdep_get_name(const struct kmod_list *l)
+{
 	const struct kmod_softdep *dep = l->data;
 	return dep->name;
 }
 
-const char * const *kmod_softdep_get_pre(const struct kmod_list *l, unsigned int *count) {
+const char *const *kmod_softdep_get_pre(const struct kmod_list *l, unsigned int *count)
+{
 	const struct kmod_softdep *dep = l->data;
 	*count = dep->n_pre;
 	return dep->pre;
 }
 
-const char * const *kmod_softdep_get_post(const struct kmod_list *l, unsigned int *count) {
+const char *const *kmod_softdep_get_post(const struct kmod_list *l, unsigned int *count)
+{
 	const struct kmod_softdep *dep = l->data;
 	*count = dep->n_post;
 	return dep->post;
 }
 
-const char *kmod_weakdep_get_name(const struct kmod_list *l) {
+const char *kmod_weakdep_get_name(const struct kmod_list *l)
+{
 	const struct kmod_weakdep *dep = l->data;
 	return dep->name;
 }
 
-const char * const *kmod_weakdep_get_weak(const struct kmod_list *l, unsigned int *count) {
+const char *const *kmod_weakdep_get_weak(const struct kmod_list *l, unsigned int *count)
+{
 	const struct kmod_weakdep *dep = l->data;
 	*count = dep->n_weak;
 	return dep->weak;
 }
-static int kmod_config_add_command(struct kmod_config *config,
-						const char *modname,
-						const char *command,
-						const char *command_name,
-						struct kmod_list **list)
+static int kmod_config_add_command(struct kmod_config *config, const char *modname,
+				   const char *command, const char *command_name,
+				   struct kmod_list **list)
 {
 	_cleanup_free_ struct kmod_command *cmd;
 	struct kmod_list *l;
 	size_t modnamelen = strlen(modname) + 1;
 	size_t commandlen = strlen(command) + 1;
 
-	DBG(config->ctx, "modname='%s' cmd='%s %s'\n", modname, command_name,
-								command);
+	DBG(config->ctx, "modname='%s' cmd='%s %s'\n", modname, command_name, command);
 
 	cmd = malloc(sizeof(*cmd) + modnamelen + commandlen);
 	if (!cmd)
@@ -143,9 +151,8 @@ static int kmod_config_add_command(struct kmod_config *config,
 	return 0;
 }
 
-static void kmod_config_free_command(struct kmod_config *config,
-					struct kmod_list *l,
-					struct kmod_list **list)
+static void kmod_config_free_command(struct kmod_config *config, struct kmod_list *l,
+				     struct kmod_list **list)
 {
 	struct kmod_command *cmd = l->data;
 
@@ -153,8 +160,8 @@ static void kmod_config_free_command(struct kmod_config *config,
 	*list = kmod_list_remove(l);
 }
 
-static int kmod_config_add_options(struct kmod_config *config,
-				const char *modname, const char *options)
+static int kmod_config_add_options(struct kmod_config *config, const char *modname,
+				   const char *options)
 {
 	_cleanup_free_ struct kmod_options *opt;
 	struct kmod_list *list;
@@ -182,8 +189,7 @@ static int kmod_config_add_options(struct kmod_config *config,
 	return 0;
 }
 
-static void kmod_config_free_options(struct kmod_config *config,
-							struct kmod_list *l)
+static void kmod_config_free_options(struct kmod_config *config, struct kmod_list *l)
 {
 	struct kmod_options *opt = l->data;
 
@@ -192,8 +198,8 @@ static void kmod_config_free_options(struct kmod_config *config,
 	config->options = kmod_list_remove(l);
 }
 
-static int kmod_config_add_alias(struct kmod_config *config,
-					const char *name, const char *modname)
+static int kmod_config_add_alias(struct kmod_config *config, const char *name,
+				 const char *modname)
 {
 	_cleanup_free_ struct kmod_alias *alias;
 	struct kmod_list *list;
@@ -219,8 +225,7 @@ static int kmod_config_add_alias(struct kmod_config *config,
 	return 0;
 }
 
-static void kmod_config_free_alias(struct kmod_config *config,
-							struct kmod_list *l)
+static void kmod_config_free_alias(struct kmod_config *config, struct kmod_list *l)
 {
 	struct kmod_alias *alias = l->data;
 
@@ -229,8 +234,7 @@ static void kmod_config_free_alias(struct kmod_config *config,
 	config->aliases = kmod_list_remove(l);
 }
 
-static int kmod_config_add_blacklist(struct kmod_config *config,
-							const char *modname)
+static int kmod_config_add_blacklist(struct kmod_config *config, const char *modname)
 {
 	_cleanup_free_ char *p;
 	struct kmod_list *list;
@@ -250,16 +254,14 @@ static int kmod_config_add_blacklist(struct kmod_config *config,
 	return 0;
 }
 
-static void kmod_config_free_blacklist(struct kmod_config *config,
-							struct kmod_list *l)
+static void kmod_config_free_blacklist(struct kmod_config *config, struct kmod_list *l)
 {
 	free(l->data);
 	config->blacklists = kmod_list_remove(l);
 }
 
-static int kmod_config_add_softdep(struct kmod_config *config,
-							const char *modname,
-							const char *line)
+static int kmod_config_add_softdep(struct kmod_config *config, const char *modname,
+				   const char *line)
 {
 	struct kmod_list *list;
 	struct kmod_softdep *dep;
@@ -274,7 +276,7 @@ static int kmod_config_add_softdep(struct kmod_config *config,
 	DBG(config->ctx, "modname=%s\n", modname);
 
 	/* analyze and count */
-	for (p = s = line; ; s++) {
+	for (p = s = line;; s++) {
 		size_t plen;
 
 		if (*s != '\0') {
@@ -295,10 +297,10 @@ static int kmod_config_add_softdep(struct kmod_config *config,
 		plen = s - p;
 
 		if (plen == sizeof("pre:") - 1 &&
-				memcmp(p, "pre:", sizeof("pre:") - 1) == 0)
+		    memcmp(p, "pre:", sizeof("pre:") - 1) == 0)
 			mode = S_PRE;
 		else if (plen == sizeof("post:") - 1 &&
-				memcmp(p, "post:", sizeof("post:") - 1) == 0)
+			 memcmp(p, "post:", sizeof("post:") - 1) == 0)
 			mode = S_POST;
 		else if (*s != '\0' || (*s == '\0' && !was_space)) {
 			if (mode == S_PRE) {
@@ -317,8 +319,7 @@ static int kmod_config_add_softdep(struct kmod_config *config,
 	DBG(config->ctx, "%u pre, %u post\n", n_pre, n_post);
 
 	dep = malloc(sizeof(struct kmod_softdep) + modnamelen +
-		     n_pre * sizeof(const char *) +
-		     n_post * sizeof(const char *) +
+		     n_pre * sizeof(const char *) + n_post * sizeof(const char *) +
 		     buflen);
 	if (dep == NULL) {
 		ERR(config->ctx, "out-of-memory modname=%s\n", modname);
@@ -338,7 +339,7 @@ static int kmod_config_add_softdep(struct kmod_config *config,
 	n_post = 0;
 	mode = S_NONE;
 	was_space = false;
-	for (p = s = line; ; s++) {
+	for (p = s = line;; s++) {
 		size_t plen;
 
 		if (*s != '\0') {
@@ -359,10 +360,10 @@ static int kmod_config_add_softdep(struct kmod_config *config,
 		plen = s - p;
 
 		if (plen == sizeof("pre:") - 1 &&
-				memcmp(p, "pre:", sizeof("pre:") - 1) == 0)
+		    memcmp(p, "pre:", sizeof("pre:") - 1) == 0)
 			mode = S_PRE;
 		else if (plen == sizeof("post:") - 1 &&
-				memcmp(p, "post:", sizeof("post:") - 1) == 0)
+			 memcmp(p, "post:", sizeof("post:") - 1) == 0)
 			mode = S_POST;
 		else if (*s != '\0' || (*s == '\0' && !was_space)) {
 			if (mode == S_PRE) {
@@ -394,9 +395,8 @@ static int kmod_config_add_softdep(struct kmod_config *config,
 	return 0;
 }
 
-static int kmod_config_add_weakdep(struct kmod_config *config,
-							const char *modname,
-							const char *line)
+static int kmod_config_add_weakdep(struct kmod_config *config, const char *modname,
+				   const char *line)
 {
 	struct kmod_list *list;
 	struct kmod_weakdep *dep;
@@ -410,7 +410,7 @@ static int kmod_config_add_weakdep(struct kmod_config *config,
 	DBG(config->ctx, "modname=%s\n", modname);
 
 	/* analyze and count */
-	for (p = s = line; ; s++) {
+	for (p = s = line;; s++) {
 		size_t plen;
 
 		if (*s != '\0') {
@@ -442,8 +442,7 @@ static int kmod_config_add_weakdep(struct kmod_config *config,
 	DBG(config->ctx, "%u weak\n", n_weak);
 
 	dep = malloc(sizeof(struct kmod_weakdep) + modnamelen +
-		     n_weak * sizeof(const char *) +
-		     buflen);
+		     n_weak * sizeof(const char *) + buflen);
 	if (dep == NULL) {
 		ERR(config->ctx, "out-of-memory modname=%s\n", modname);
 		return -ENOMEM;
@@ -458,7 +457,7 @@ static int kmod_config_add_weakdep(struct kmod_config *config,
 	itr = dep->name + modnamelen;
 	n_weak = 0;
 	was_space = false;
-	for (p = s = line; ; s++) {
+	for (p = s = line;; s++) {
 		size_t plen;
 
 		if (*s != '\0') {
@@ -500,7 +499,8 @@ static int kmod_config_add_weakdep(struct kmod_config *config,
 	return 0;
 }
 
-static char *softdep_to_char(struct kmod_softdep *dep) {
+static char *softdep_to_char(struct kmod_softdep *dep)
+{
 	const size_t sz_preprefix = sizeof("pre: ") - 1;
 	const size_t sz_postprefix = sizeof("post: ") - 1;
 	size_t sz = 1; /* at least '\0' */
@@ -514,8 +514,7 @@ static char *softdep_to_char(struct kmod_softdep *dep) {
 	 */
 	if (dep->n_pre > 0) {
 		start = dep->pre[0];
-		end = dep->pre[dep->n_pre - 1]
-					+ strlen(dep->pre[dep->n_pre - 1]);
+		end = dep->pre[dep->n_pre - 1] + strlen(dep->pre[dep->n_pre - 1]);
 		sz_pre = end - start;
 		sz += sz_pre + sz_preprefix;
 	} else
@@ -523,8 +522,7 @@ static char *softdep_to_char(struct kmod_softdep *dep) {
 
 	if (dep->n_post > 0) {
 		start = dep->post[0];
-		end = dep->post[dep->n_post - 1]
-					+ strlen(dep->post[dep->n_post - 1]);
+		end = dep->post[dep->n_post - 1] + strlen(dep->post[dep->n_post - 1]);
 		sz_post = end - start;
 		sz += sz_post + sz_postprefix;
 	} else
@@ -569,7 +567,8 @@ static char *softdep_to_char(struct kmod_softdep *dep) {
 	return s;
 }
 
-static char *weakdep_to_char(struct kmod_weakdep *dep) {
+static char *weakdep_to_char(struct kmod_weakdep *dep)
+{
 	size_t sz;
 	const char *start, *end;
 	char *s, *itr;
@@ -580,8 +579,7 @@ static char *weakdep_to_char(struct kmod_weakdep *dep) {
 	 */
 	if (dep->n_weak > 0) {
 		start = dep->weak[0];
-		end = dep->weak[dep->n_weak - 1]
-					+ strlen(dep->weak[dep->n_weak - 1]);
+		end = dep->weak[dep->n_weak - 1] + strlen(dep->weak[dep->n_weak - 1]);
 		sz = end - start;
 	} else
 		sz = 0;
@@ -607,22 +605,20 @@ static char *weakdep_to_char(struct kmod_weakdep *dep) {
 	return s;
 }
 
-static void kmod_config_free_softdep(struct kmod_config *config,
-							struct kmod_list *l)
+static void kmod_config_free_softdep(struct kmod_config *config, struct kmod_list *l)
 {
 	free(l->data);
 	config->softdeps = kmod_list_remove(l);
 }
 
-static void kmod_config_free_weakdep(struct kmod_config *config,
-							struct kmod_list *l)
+static void kmod_config_free_weakdep(struct kmod_config *config, struct kmod_list *l)
 {
 	free(l->data);
 	config->weakdeps = kmod_list_remove(l);
 }
 
-static void kcmdline_parse_result(struct kmod_config *config, char *modname,
-						char *param, char *value)
+static void kcmdline_parse_result(struct kmod_config *config, char *modname, char *param,
+				  char *value)
 {
 	if (modname == NULL || param == NULL)
 		return;
@@ -639,7 +635,8 @@ static void kcmdline_parse_result(struct kmod_config *config, char *modname,
 		}
 	} else {
 		if (underscores(modname) < 0) {
-			ERR(config->ctx, "Ignoring bad option on kernel command line while parsing module name: '%s'\n",
+			ERR(config->ctx,
+			    "Ignoring bad option on kernel command line while parsing module name: '%s'\n",
 			    modname);
 		} else {
 			kmod_config_add_options(config, modname, param);
@@ -651,7 +648,7 @@ static int kmod_config_parse_kcmdline(struct kmod_config *config)
 {
 	char buf[KCMD_LINE_SIZE];
 	int fd, err;
-	char *p, *p_quote_start, *modname,  *param = NULL, *value = NULL;
+	char *p, *p_quote_start, *modname, *param = NULL, *value = NULL;
 	bool is_quoted = false, iter = true;
 	enum state {
 		STATE_IGNORE,
@@ -661,7 +658,7 @@ static int kmod_config_parse_kcmdline(struct kmod_config *config)
 		STATE_COMPLETE,
 	} state;
 
-	fd = open("/proc/cmdline", O_RDONLY|O_CLOEXEC);
+	fd = open("/proc/cmdline", O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		err = -errno;
 		DBG(config->ctx, "could not open '/proc/cmdline' for reading: %m\n");
@@ -672,7 +669,7 @@ static int kmod_config_parse_kcmdline(struct kmod_config *config)
 	close(fd);
 	if (err < 0) {
 		ERR(config->ctx, "could not read from '/proc/cmdline': %s\n",
-							strerror(-err));
+		    strerror(-err));
 		return err;
 	}
 
@@ -762,7 +759,9 @@ static int kmod_config_parse_kcmdline(struct kmod_config *config)
 				 * vv        v      v
 				 * "parport\0dyndbg=file drivers/parport/ieee1284_ops.c +mpf" */
 				memmove(p_quote_start, modname, value - modname);
-				value--; modname--; param--;
+				value--;
+				modname--;
+				param--;
 				*value = '"';
 			}
 			kcmdline_parse_result(config, modname, param, value);
@@ -780,8 +779,7 @@ static int kmod_config_parse_kcmdline(struct kmod_config *config)
  * Take an fd and own it. It will be closed on return. filename is used only
  * for debug messages
  */
-static int kmod_config_parse(struct kmod_config *config, int fd,
-							const char *filename)
+static int kmod_config_parse(struct kmod_config *config, int fd, const char *filename)
 {
 	struct kmod_ctx *ctx = config->ctx;
 	char *line;
@@ -837,8 +835,8 @@ static int kmod_config_parse(struct kmod_config *config, int fd,
 			if (underscores(modname) < 0 || installcmd == NULL)
 				goto syntax_error;
 
-			kmod_config_add_command(config, modname, installcmd,
-					cmd, &config->install_commands);
+			kmod_config_add_command(config, modname, installcmd, cmd,
+						&config->install_commands);
 		} else if (streq(cmd, "remove")) {
 			char *modname = strtok_r(NULL, "\t ", &saveptr);
 			char *removecmd = strtok_r(NULL, "\0", &saveptr);
@@ -846,8 +844,8 @@ static int kmod_config_parse(struct kmod_config *config, int fd,
 			if (underscores(modname) < 0 || removecmd == NULL)
 				goto syntax_error;
 
-			kmod_config_add_command(config, modname, removecmd,
-					cmd, &config->remove_commands);
+			kmod_config_add_command(config, modname, removecmd, cmd,
+						&config->remove_commands);
 		} else if (streq(cmd, "softdep")) {
 			char *modname = strtok_r(NULL, "\t ", &saveptr);
 			char *softdeps = strtok_r(NULL, "\0", &saveptr);
@@ -864,14 +862,13 @@ static int kmod_config_parse(struct kmod_config *config, int fd,
 				goto syntax_error;
 
 			kmod_config_add_weakdep(config, modname, weakdeps);
-		} else if (streq(cmd, "include")
-				|| streq(cmd, "config")) {
+		} else if (streq(cmd, "include") || streq(cmd, "config")) {
 			ERR(ctx, "%s: command %s is deprecated and not parsed anymore\n",
-								filename, cmd);
+			    filename, cmd);
 		} else {
 syntax_error:
 			ERR(ctx, "%s line %u: ignoring bad line starting with '%s'\n",
-						filename, linenum, cmd);
+			    filename, linenum, cmd);
 		}
 
 done_next:
@@ -896,12 +893,12 @@ void kmod_config_free(struct kmod_config *config)
 
 	while (config->install_commands) {
 		kmod_config_free_command(config, config->install_commands,
-						&config->install_commands);
+					 &config->install_commands);
 	}
 
 	while (config->remove_commands) {
 		kmod_config_free_command(config, config->remove_commands,
-						&config->remove_commands);
+					 &config->remove_commands);
 	}
 
 	while (config->softdeps)
@@ -910,15 +907,14 @@ void kmod_config_free(struct kmod_config *config)
 	while (config->weakdeps)
 		kmod_config_free_weakdep(config, config->weakdeps);
 
-	for (; config->paths != NULL;
-				config->paths = kmod_list_remove(config->paths))
+	for (; config->paths != NULL; config->paths = kmod_list_remove(config->paths))
 		free(config->paths->data);
 
 	free(config);
 }
 
-static bool conf_files_filter_out(struct kmod_ctx *ctx, DIR *d,
-					const char *path, const char *fn)
+static bool conf_files_filter_out(struct kmod_ctx *ctx, DIR *d, const char *path,
+				  const char *fn)
 {
 	size_t len = strlen(fn);
 	struct stat st;
@@ -929,11 +925,16 @@ static bool conf_files_filter_out(struct kmod_ctx *ctx, DIR *d,
 	if (len < 6 || !streq(&fn[len - 5], ".conf"))
 		return true;
 
-	fstatat(dirfd(d), fn, &st, 0);
+	if (fstatat(dirfd(d), fn, &st, 0) < 0) {
+		ERR(ctx, "Cannot stat directory entry: %s/%s\n", path, fn);
+		return true;
+	}
 
 	if (S_ISDIR(st.st_mode)) {
-		ERR(ctx, "Directories inside directories are not supported: "
-							"%s/%s\n", path, fn);
+		ERR(ctx,
+		    "Directories inside directories are not supported: "
+		    "%s/%s\n",
+		    path, fn);
 		return true;
 	}
 
@@ -946,9 +947,8 @@ struct conf_file {
 	char name[];
 };
 
-static int conf_files_insert_sorted(struct kmod_ctx *ctx,
-					struct kmod_list **list,
-					const char *path, const char *name)
+static int conf_files_insert_sorted(struct kmod_ctx *ctx, struct kmod_list **list,
+				    const char *path, const char *name)
 {
 	struct kmod_list *lpos, *tmp;
 	struct conf_file *cf;
@@ -969,8 +969,7 @@ static int conf_files_insert_sorted(struct kmod_ctx *ctx,
 	}
 
 	if (cmp == 0) {
-		DBG(ctx, "Ignoring duplicate config file: %s/%s\n", path,
-									name);
+		DBG(ctx, "Ignoring duplicate config file: %s/%s\n", path, name);
 		return -EEXIST;
 	}
 
@@ -1005,8 +1004,7 @@ static int conf_files_insert_sorted(struct kmod_ctx *ctx,
  * Insert configuration files in @list, ignoring duplicates
  */
 static int conf_files_list(struct kmod_ctx *ctx, struct kmod_list **list,
-						const char *path,
-						unsigned long long *path_stamp)
+			   const char *path, unsigned long long *path_stamp)
 {
 	DIR *d;
 	int err;
@@ -1044,7 +1042,7 @@ static int conf_files_list(struct kmod_ctx *ctx, struct kmod_list **list,
 }
 
 int kmod_config_new(struct kmod_ctx *ctx, struct kmod_config **p_config,
-					const char * const *config_paths)
+		    const char *const *config_paths)
 {
 	struct kmod_config *config;
 	struct kmod_list *list = NULL;
@@ -1095,15 +1093,15 @@ int kmod_config_new(struct kmod_ctx *ctx, struct kmod_config **p_config,
 
 		if (cf->is_single) {
 			fn = cf->path;
-		} else if (snprintf(buf, sizeof(buf), "%s/%s",
-				    cf->path, cf->name) >= (int)sizeof(buf)) {
-			ERR(ctx, "Error parsing %s/%s: path too long\n",
-			    cf->path, cf->name);
+		} else if (snprintf(buf, sizeof(buf), "%s/%s", cf->path, cf->name) >=
+			   (int)sizeof(buf)) {
+			ERR(ctx, "Error parsing %s/%s: path too long\n", cf->path,
+			    cf->name);
 			free(cf);
 			continue;
 		}
 
-		fd = open(fn, O_RDONLY|O_CLOEXEC);
+		fd = open(fn, O_RDONLY | O_CLOEXEC);
 		DBG(ctx, "parsing file '%s' fd=%d\n", fn, fd);
 
 		if (fd >= 0)
@@ -1162,8 +1160,8 @@ static const char *weakdep_get_plain_weakdep(const struct kmod_list *l)
 	return s;
 }
 
-static struct kmod_config_iter *kmod_config_iter_new(const struct kmod_ctx* ctx,
-							enum config_type type)
+static struct kmod_config_iter *kmod_config_iter_new(const struct kmod_ctx *ctx,
+						     enum config_type type)
 {
 	struct kmod_config_iter *iter = calloc(1, sizeof(*iter));
 	const struct kmod_config *config = kmod_get_config(ctx);
@@ -1215,161 +1213,66 @@ static struct kmod_config_iter *kmod_config_iter_new(const struct kmod_ctx* ctx,
 	return iter;
 }
 
-/**
- * SECTION:libkmod-config
- * @short_description: retrieve current libkmod configuration
- */
-
-/**
- * kmod_config_get_blacklists:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the blacklist maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the blacklists or NULL on failure. Free it
- * with kmod_config_iter_free_iter().
- */
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_blacklists(const struct kmod_ctx *ctx)
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_BLACKLIST);
 }
 
-/**
- * kmod_config_get_install_commands:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the install commands maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the install commands or NULL on failure. Free
- * it with kmod_config_iter_free_iter().
- */
+// clang-format off
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_install_commands(const struct kmod_ctx *ctx)
+// clang-format on
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_INSTALL);
 }
 
-/**
- * kmod_config_get_remove_commands:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the remove commands maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the remove commands or NULL on failure. Free
- * it with kmod_config_iter_free_iter().
- */
+// clang-format off
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_remove_commands(const struct kmod_ctx *ctx)
+// clang-format on
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_REMOVE);
 }
 
-/**
- * kmod_config_get_aliases:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the aliases maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the aliases or NULL on failure. Free it with
- * kmod_config_iter_free_iter().
- */
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_aliases(const struct kmod_ctx *ctx)
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_ALIAS);
 }
 
-/**
- * kmod_config_get_options:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the options maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the options or NULL on failure. Free it with
- * kmod_config_iter_free_iter().
- */
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_options(const struct kmod_ctx *ctx)
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_OPTION);
 }
 
-/**
- * kmod_config_get_softdeps:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the softdeps maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the softdeps or NULL on failure. Free it with
- * kmod_config_iter_free_iter().
- */
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_softdeps(const struct kmod_ctx *ctx)
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_SOFTDEP);
 }
 
-/**
- * kmod_config_get_weakdeps:
- * @ctx: kmod library context
- *
- * Retrieve an iterator to deal with the weakdeps maintained inside the
- * library. See kmod_config_iter_get_key(), kmod_config_iter_get_value() and
- * kmod_config_iter_next(). At least one call to kmod_config_iter_next() must
- * be made to initialize the iterator and check if it's valid.
- *
- * Returns: a new iterator over the weakdeps or NULL on failure. Free it with
- * kmod_config_iter_free_iter().
- */
 KMOD_EXPORT struct kmod_config_iter *kmod_config_get_weakdeps(const struct kmod_ctx *ctx)
 {
 	if (ctx == NULL)
-		return NULL;;
+		return NULL;
 
 	return kmod_config_iter_new(ctx, CONFIG_TYPE_WEAKDEP);
 }
 
-/**
- * kmod_config_iter_get_key:
- * @iter: iterator over a certain configuration
- *
- * When using a new allocated iterator, user must perform a call to
- * kmod_config_iter_next() to initialize iterator's position and check if it's
- * valid.
- *
- * Returns: the key of the current configuration pointed by @iter.
- */
 KMOD_EXPORT const char *kmod_config_iter_get_key(const struct kmod_config_iter *iter)
 {
 	if (iter == NULL || iter->curr == NULL)
@@ -1378,16 +1281,6 @@ KMOD_EXPORT const char *kmod_config_iter_get_key(const struct kmod_config_iter *
 	return iter->get_key(iter->curr);
 }
 
-/**
- * kmod_config_iter_get_value:
- * @iter: iterator over a certain configuration
- *
- * When using a new allocated iterator, user must perform a call to
- * kmod_config_iter_next() to initialize iterator's position and check if it's
- * valid.
- *
- * Returns: the value of the current configuration pointed by @iter.
- */
 KMOD_EXPORT const char *kmod_config_iter_get_value(const struct kmod_config_iter *iter)
 {
 	const char *s;
@@ -1402,25 +1295,13 @@ KMOD_EXPORT const char *kmod_config_iter_get_value(const struct kmod_config_iter
 		struct kmod_config_iter *i = (struct kmod_config_iter *)iter;
 
 		free(i->data);
-		s = i->data = (void *) iter->get_value(iter->curr);
+		s = i->data = (void *)iter->get_value(iter->curr);
 	} else
 		s = iter->get_value(iter->curr);
 
 	return s;
 }
 
-/**
- * kmod_config_iter_next:
- * @iter: iterator over a certain configuration
- *
- * Make @iter point to the next item of a certain configuration. It's an
- * automatically recycling iterator. When it reaches the end, false is
- * returned; then if user wants to iterate again, it's sufficient to call this
- * function once more.
- *
- * Returns: true if next position of @iter is valid or false if its end is
- * reached.
- */
 KMOD_EXPORT bool kmod_config_iter_next(struct kmod_config_iter *iter)
 {
 	if (iter == NULL)
@@ -1436,14 +1317,9 @@ KMOD_EXPORT bool kmod_config_iter_next(struct kmod_config_iter *iter)
 	return iter->curr != NULL;
 }
 
-/**
- * kmod_config_iter_free_iter:
- * @iter: iterator over a certain configuration
- *
- * Free resources used by the iterator.
- */
 KMOD_EXPORT void kmod_config_iter_free_iter(struct kmod_config_iter *iter)
 {
-	free(iter->data);
+	if (iter)
+		free(iter->data);
 	free(iter);
 }

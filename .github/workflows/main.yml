@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2024 Emil Velikov <emil.l.velikov@gmail.com>
+# SPDX-FileCopyrightText: 2024 Lucas De Marchi <lucas.de.marchi@gmail.com>
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 name: Build and Test
 
 on:
@@ -15,62 +20,107 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - container: 'ubuntu:22.04'
-            test: 'yes'
-          - container: 'ubuntu:24.04'
-            test: 'yes'
-          - container: 'archlinux:base-devel'
-            test: 'yes'
-          - container: 'fedora:latest'
-            test: 'yes'
-          - container: 'alpine:latest'
-            test: 'no'
-          - container: 'debian:unstable'
-            test: 'yes'
+        build: ['meson', 'autotools']
+        container:
+          - name: 'ubuntu:22.04'
+            meson_setup: '-D b_sanitize=address,undefined'
+            multilib: 'true'
+          - name: 'ubuntu:24.04'
+            meson_setup: '-D b_sanitize=address,undefined'
+            multilib: 'true'
+          - name: 'archlinux:multilib-devel'
+            meson_setup: '-D b_sanitize=address,undefined'
+            multilib: 'true'
+          - name: 'fedora:latest'
+            meson_setup: '-D b_sanitize=address,undefined'
+          - name: 'alpine:latest'
+            meson_setup: '-D docs=false'
+          - name: 'debian:unstable'
+            meson_setup: '-D b_sanitize=address,undefined'
+            multilib: 'true'
 
     container:
-      image: ${{ matrix.container }}
+      image: ${{ matrix.container.name }}
 
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - name: Sparse checkout the local actions
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          sparse-checkout: .github
 
       - uses: ./.github/actions/setup-ubuntu
-        if: ${{ startsWith(matrix.container, 'ubuntu') }}
+        if: ${{ startsWith(matrix.container.name, 'ubuntu') }}
       - uses: ./.github/actions/setup-archlinux
-        if: ${{ startsWith(matrix.container, 'archlinux') }}
+        if: ${{ startsWith(matrix.container.name, 'archlinux') }}
       - uses: ./.github/actions/setup-fedora
-        if: ${{ startsWith(matrix.container, 'fedora') }}
+        if: ${{ startsWith(matrix.container.name, 'fedora') }}
       - uses: ./.github/actions/setup-alpine
-        if: ${{ startsWith(matrix.container, 'alpine') }}
+        if: ${{ startsWith(matrix.container.name, 'alpine') }}
       - uses: ./.github/actions/setup-debian
-        if: ${{ startsWith(matrix.container, 'debian') }}
+        if: ${{ startsWith(matrix.container.name, 'debian') }}
 
-      - name: configure
-        run: |
-          mkdir build
-          cd build
-          ../autogen.sh c ${{ matrix.configure }}
+      - name: Checkout the whole project
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
-      - name: build
+      - name: Set the environment
         run: |
-          cd build
-          make -j$(nproc)
+          # The second checkout above claims to set safe.directory, yet it
+          # doesn't quite work. Perhaps our double/sparse checkout is to blame?
+          git config --global --add safe.directory '*'
 
-      - name: test
-        if: ${{ matrix.test == 'yes' }}
-        run: |
-          cd build
-          make KDIR=/usr/lib/modules/*/build -j$(nproc) check
+          .github/print-kdir.sh >> "$GITHUB_ENV"
+          echo "ASAN_OPTIONS=verify_asan_link_order=0:halt_on_error=1:abort_on_error=1:print_summary=1" >> "$GITHUB_ENV"
 
-      - name: install
-        run: |
-          cd build
-          DESTDIR=$PWD/inst make install
+      - name: configure (meson)
+        if: ${{ matrix.build == 'meson' }}
+        run: mkdir build && cd build && meson setup --native-file ../build-dev.ini ${{ matrix.container.meson_setup }} . ..
 
-      - name: distcheck
-        if: ${{ matrix.test == 'yes' }}
-        run: |
-          cd build
-          DISTCHECK_CONFIGURE_FLAGS=${{ matrix.configure }} make KDIR=/usr/lib/modules/*/build distcheck
+      - name: configure (autotools)
+        if: ${{ matrix.build == 'autotools' }}
+        run: mkdir build && cd build && ../autogen.sh c
+
+      - name: build (meson)
+        if: ${{ matrix.build == 'meson' }}
+        run: cd build && meson compile
+
+      - name: build (autotools)
+        if: ${{ matrix.build == 'autotools' }}
+        run: cd build && make -j$(nproc)
+
+      - name: test (meson)
+        if: ${{ matrix.build == 'meson' }}
+        run: cd build && meson test
+
+      - name: test (autotools)
+        if: ${{ matrix.build == 'autotools' }}
+        run: cd build && make -j$(nproc) check
+
+      - name: install (meson)
+        if: ${{ matrix.build == 'meson' }}
+        run: cd build && DESTDIR=$PWD/inst meson install
+
+      - name: install (autotools)
+        if: ${{ matrix.build == 'autotools' }}
+        run: cd build && DESTDIR=$PWD/inst make install
+
+      - name: distcheck (meson)
+        if: ${{ matrix.build == 'meson' }}
+        run: cd build && meson dist
+
+      - name: distcheck (autotools)
+        if: ${{ matrix.build == 'autotools' }}
+        run: cd build && make distcheck
+
+      - name: configure (32bit) (meson)
+        if: ${{ matrix.build == 'meson' && matrix.container.multilib == 'true' }}
+        run: mkdir build32 && cd build32 && CC='gcc -m32' meson setup . ..
+
+      - name: build (32bit) (meson)
+        if: ${{ matrix.build == 'meson' && matrix.container.multilib == 'true' }}
+        run: cd build32 && meson compile
+
+      - name: test (32bit) (meson)
+        if: ${{ matrix.build == 'meson' && matrix.container.multilib == 'true' }}
+        run: cd build32 && meson test

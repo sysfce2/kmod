@@ -15,12 +15,10 @@ Linux Kernel modules. Most users will only run it using its other names.
 
 # OPTIONS
 
-*-V*
-*--version*
+*-V*, *--version*
 	Show the program version and exit.
 
-*-h*
-*--help*
+*-h*, *--help*
 	Show the help message.
 
 # COMMANDS
@@ -42,6 +40,12 @@ This manual page originally Copyright 2014, Marco d'Itri.
 # SEE ALSO
 
 *lsmod*(8), *rmmod*(8), *insmod*(8), *modinfo*(8), *modprobe*(8), *depmod*(8)
+
+# BUGS
+
+Please direct any bug reports to kmod's issue tracker at
+https://github.com/kmod-project/kmod/issues/ alongside with version used, steps
+to reproduce the problem and the expected outcome."
 
 # AUTHOR
 
