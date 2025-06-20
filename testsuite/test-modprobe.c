@@ -421,4 +421,76 @@ DEFINE_TEST(modprobe_module_from_relpath,
 	.modules_loaded = "mod-simple",
 	);
 
+static int modprobe_blacklisted_by_alias(void)
+{
+	return EXEC_TOOL(modprobe, "simple.abc");
+}
+DEFINE_TEST(modprobe_blacklisted_by_alias,
+	.description = "check if modprobe alias does not load module with blacklist entry",
+	.config = {
+		[TC_UNAME_R] = "4.4.4",
+		[TC_ROOTFS] = TESTSUITE_ROOTFS "test-modprobe/blacklist",
+		[TC_INIT_MODULE_RETCODES] = "",
+	},
+	.modules_loaded = "",
+	.modules_not_loaded = "mod-simple",
+	);
+
+static int modprobe_blacklisted_by_name(void)
+{
+	return EXEC_TOOL(modprobe, "mod-simple");
+}
+DEFINE_TEST(modprobe_blacklisted_by_name,
+	.description = "check if modprobe modulename loads module with blacklist entry",
+	.config = {
+		[TC_UNAME_R] = "4.4.4",
+		[TC_ROOTFS] = TESTSUITE_ROOTFS "test-modprobe/blacklist-loaded",
+		[TC_INIT_MODULE_RETCODES] = "",
+	},
+	.modules_loaded = "mod-simple",
+	);
+
+static int modprobe_blacklisted_by_name_filtered(void)
+{
+	return EXEC_TOOL(modprobe, "-b", "mod-simple");
+}
+DEFINE_TEST(modprobe_blacklisted_by_name_filtered,
+	.description = "check if modprobe -b modulename does not load module with blacklist entry",
+	.config = {
+		[TC_UNAME_R] = "4.4.4",
+		[TC_ROOTFS] = TESTSUITE_ROOTFS "test-modprobe/blacklist",
+		[TC_INIT_MODULE_RETCODES] = "",
+	},
+	.modules_loaded = "",
+	.modules_not_loaded = "mod-simple",
+	);
+
+static int modprobe_blacklisted_dependency(void)
+{
+	return EXEC_TOOL(modprobe, "-b", "mod-foo");
+}
+DEFINE_TEST(modprobe_blacklisted_dependency,
+	.description = "check if modprobe -b dependent ignores blacklist entry of dependency",
+	.config = {
+		[TC_UNAME_R] = "4.4.4",
+		[TC_ROOTFS] = TESTSUITE_ROOTFS "test-modprobe/blacklist-dep",
+		[TC_INIT_MODULE_RETCODES] = "",
+	},
+	.modules_loaded = "mod-foo,mod-foo-a,mod-foo-b,mod_foo_c",
+	);
+
+static int modprobe_blacklisted_softdep(void)
+{
+	return EXEC_TOOL(modprobe, "-b", "mod-simple");
+}
+DEFINE_TEST(modprobe_blacklisted_softdep,
+	.description = "check if modprobe -b dependent ignores blacklist entry of softdep",
+	.config = {
+		[TC_UNAME_R] = "4.4.4",
+		[TC_ROOTFS] = TESTSUITE_ROOTFS "test-modprobe/blacklist-softdep",
+		[TC_INIT_MODULE_RETCODES] = "",
+	},
+	.modules_loaded = "mod-simple,mod-foo-a",
+	);
+
 TESTSUITE_MAIN();
