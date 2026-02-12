@@ -168,7 +168,7 @@ int test_spawn_prog(const char *prog, const char *const args[])
 
 static void test_export_environ(const struct test *t)
 {
-	char *preload = NULL;
+	_cleanup_free_ char *preload = NULL;
 	size_t preloadlen = 0;
 	size_t i;
 	const struct keyval *env;
@@ -188,7 +188,6 @@ static void test_export_environ(const struct test *t)
 		tmp = realloc(preload, preloadlen + 2 + ldpreloadlen);
 		if (tmp == NULL) {
 			ERR("oom: test_export_environ()\n");
-			free(preload);
 			return;
 		}
 		preload = tmp;
@@ -209,7 +208,6 @@ static void test_export_environ(const struct test *t)
 			tmp = malloc(preloadlen + 2 + len);
 			if (tmp == NULL) {
 				ERR("oom: test_export_environ()\n");
-				free(preload);
 				return;
 			}
 			memcpy(tmp, existing_preload, len);
@@ -222,8 +220,6 @@ static void test_export_environ(const struct test *t)
 		}
 		setenv("LD_PRELOAD", preload, 1);
 	}
-
-	free(preload);
 
 	for (env = t->env_vars; env && env->key; env++)
 		setenv(env->key, env->val, 1);
