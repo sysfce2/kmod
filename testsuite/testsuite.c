@@ -168,55 +168,52 @@ int test_spawn_prog(const char *prog, const char *const args[])
 
 static void test_export_environ(const struct test *t)
 {
-	_cleanup_free_ char *preload = NULL;
-	size_t preloadlen = 0;
-	size_t i;
+	const char *existing_preload = getenv("LD_PRELOAD");
+	size_t existing_preload_len = existing_preload ? strlen(existing_preload) : 0;
+	size_t total_len = existing_preload_len;
 	const struct keyval *env;
+	size_t i;
 
 	for (i = 0; i < _TC_LAST; i++) {
-		const char *ldpreload;
-		size_t ldpreloadlen;
-		char *tmp;
-
 		if (t->config[i] == NULL)
 			continue;
 
-		ldpreload = env_config[i].ldpreload;
-		ldpreloadlen = strlen(ldpreload);
-		tmp = realloc(preload, preloadlen + 2 + ldpreloadlen);
-		if (tmp == NULL) {
+		/* Don't worry if we overallocate one strlen(" ") too many. */
+		total_len += strlen(" ") + strlen(env_config[i].ldpreload);
+	}
+
+	/* Do nothing, if we have no local ldpreload. */
+	if (total_len && total_len != existing_preload_len) {
+		char *preload;
+		size_t len = 0;
+
+		preload = malloc(total_len + sizeof(char));
+		if (preload == NULL) {
 			ERR("oom: test_export_environ()\n");
 			return;
 		}
-		preload = tmp;
 
-		if (preloadlen > 0)
-			preload[preloadlen++] = ' ';
-		memcpy(preload + preloadlen, ldpreload, ldpreloadlen);
-		preloadlen += ldpreloadlen;
-		preload[preloadlen] = '\0';
-	}
+		memcpy(preload, existing_preload, existing_preload_len);
+		len += existing_preload_len;
 
-	if (preload != NULL) {
-		const char *existing_preload = getenv("LD_PRELOAD");
-		if (existing_preload) {
-			char *tmp;
-			size_t len = strlen(existing_preload);
+		for (i = 0; i < _TC_LAST; i++) {
+			const char *ldpreload;
+			size_t ldpreloadlen;
 
-			tmp = malloc(preloadlen + 2 + len);
-			if (tmp == NULL) {
-				ERR("oom: test_export_environ()\n");
-				return;
-			}
-			memcpy(tmp, existing_preload, len);
-			tmp[len++] = ' ';
-			memcpy(tmp + len, preload, preloadlen);
-			preloadlen += len;
-			tmp[preloadlen] = '\0';
-			free(preload);
-			preload = tmp;
+			if (t->config[i] == NULL)
+				continue;
+
+			ldpreload = env_config[i].ldpreload;
+			ldpreloadlen = strlen(ldpreload);
+
+			preload[len++] = ' ';
+			memcpy(preload + len, ldpreload, ldpreloadlen);
+			len += ldpreloadlen;
 		}
+		preload[len] = '\0';
+
 		setenv("LD_PRELOAD", preload, 1);
+		free(preload);
 	}
 
 	for (i = 0; i < _TC_LAST; i++) {
