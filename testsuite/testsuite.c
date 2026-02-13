@@ -181,8 +181,6 @@ static void test_export_environ(const struct test *t)
 		if (t->config[i] == NULL)
 			continue;
 
-		setenv(env_config[i].key, t->config[i], 1);
-
 		ldpreload = env_config[i].ldpreload;
 		ldpreloadlen = strlen(ldpreload);
 		tmp = realloc(preload, preloadlen + 2 + ldpreloadlen);
@@ -219,6 +217,13 @@ static void test_export_environ(const struct test *t)
 			preload = tmp;
 		}
 		setenv("LD_PRELOAD", preload, 1);
+	}
+
+	for (i = 0; i < _TC_LAST; i++) {
+		if (t->config[i] == NULL)
+			continue;
+
+		setenv(env_config[i].key, t->config[i], 1);
 	}
 
 	for (env = t->env_vars; env && env->key; env++)
