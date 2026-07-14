@@ -169,6 +169,7 @@ static int modinfo_do(struct kmod_module *mod)
 	struct param *params = NULL;
 	int err;
 
+	/* TODO: align builtin vs not wrt listing "name:" via kmod_module_get_info() */
 	if (is_builtin) {
 		if (field == NULL)
 			printf("%-16s%s%c", "name:", kmod_module_get_name(mod), separator);
