@@ -229,7 +229,7 @@ static int modinfo_do(struct kmod_module *mod)
 		params = p->next;
 
 		if (p->param == NULL)
-			printf("%-16s%.*s:%.*s%c", "parm:", p->namelen, p->name,
+			printf("%-16s%.*s: (%.*s)%c", "parm:", p->namelen, p->name,
 			       p->typelen, p->type, separator);
 		else if (p->type != NULL)
 			printf("%-16s%.*s:%.*s (%.*s)%c", "parm:", p->namelen, p->name,
