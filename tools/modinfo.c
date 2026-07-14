@@ -35,14 +35,19 @@ struct param {
 	int typelen;
 };
 
-static int add_param(const char *name, size_t namelen, const char *desc, size_t desclen,
-		     const char *type, size_t typelen, struct param **list)
+enum parm_info {
+	parm_desc,
+	parm_type,
+};
+
+static int add_param(const char *name, size_t namelen, enum parm_info parm_info,
+		     const char *value, struct param **list)
 {
+	size_t valuelen = strlen(value);
 	struct param *it;
 
-	if (namelen > INT_MAX || desclen > INT_MAX || typelen > INT_MAX) {
+	if (namelen > INT_MAX || valuelen > INT_MAX)
 		return -EINVAL;
-	}
 
 	for (it = *list; it != NULL; it = it->next) {
 		if (it->namelen == (int)namelen && memcmp(it->name, name, namelen) == 0)
@@ -63,28 +68,29 @@ static int add_param(const char *name, size_t namelen, const char *desc, size_t 
 		it->typelen = 0;
 	}
 
-	if (desc != NULL) {
-		it->desc = desc;
-		it->desclen = desclen;
-	}
-
-	if (type != NULL) {
-		it->type = type;
-		it->typelen = typelen;
+	switch (parm_info) {
+	case (parm_desc):
+		it->desc = value;
+		it->desclen = (int)valuelen;
+		break;
+	case (parm_type):
+		it->type = value;
+		it->typelen = (int)valuelen;
+		break;
 	}
 
 	return 0;
 }
 
-static int process_parm(const char *key, const char *value, struct param **params)
+static int process_parm(enum parm_info parm_info, const char *value, struct param **params)
 {
-	const char *name, *desc, *type;
-	size_t namelen, desclen, typelen;
+	const char *name;
+	size_t namelen;
 	const char *colon = strchr(value, ':');
 	int ret;
 
 	if (colon == NULL) {
-		ERR("Found invalid \"%s=%s\": missing ':'\n", key, value);
+		ERR("Missing ':' in value \"%s\"\n", value);
 		return 0;
 	}
 
@@ -95,19 +101,7 @@ static int process_parm(const char *key, const char *value, struct param **param
 
 	name = value;
 	namelen = colon - value;
-	if (streq(key, "parm")) {
-		desc = colon + 1;
-		desclen = strlen(desc);
-		type = NULL;
-		typelen = 0;
-	} else {
-		desc = NULL;
-		desclen = 0;
-		type = colon + 1;
-		typelen = strlen(type);
-	}
-
-	ret = add_param(name, namelen, desc, desclen, type, typelen, params);
+	ret = add_param(name, namelen, parm_info, colon + 1, params);
 	if (ret < 0) {
 		ERR("Unable to add parameter: %s\n", strerror(-ret));
 		return -ENOMEM;
@@ -125,12 +119,15 @@ static int modinfo_params_do(const struct kmod_list *list)
 	kmod_list_foreach(l, list) {
 		const char *key = kmod_module_info_get_key(l);
 		const char *value = kmod_module_info_get_value(l);
-		if (!streq(key, "parm") && !streq(key, "parmtype"))
-			continue;
-
-		err = process_parm(key, value, &params);
-		if (err < 0)
-			goto end;
+		if (streq(key, "parm")) {
+			err = process_parm(parm_desc, value, &params);
+			if (err < 0)
+				goto end;
+		} else if (streq(key, "parmtype")) {
+			err = process_parm(parm_type, value, &params);
+			if (err < 0)
+				goto end;
+		}
 	}
 
 	while (params != NULL) {
@@ -212,8 +209,12 @@ static int modinfo_do(struct kmod_module *mod)
 				/* filtered output contains no key, just value */
 				printf("%s%c", value, separator);
 			}
-		} else if (streq(key, "parm") || streq(key, "parmtype")) {
-			err = process_parm(key, value, &params);
+		} else if (streq(key, "parm")) {
+			err = process_parm(parm_desc, value, &params);
+			if (err < 0)
+				goto end;
+		} else if (streq(key, "parmtype")) {
+			err = process_parm(parm_type, value, &params);
 			if (err < 0)
 				goto end;
 		} else if (separator == '\0') {
