@@ -188,15 +188,17 @@ static int modinfo_do(struct kmod_module *mod)
 		const char *name = kmod_module_get_name(mod);
 		if (field == NULL)
 			print_line("name", name);
-		else if (field != NULL && streq(field, "name"))
+		else if (streq(field, "name")) {
 			print_line(NULL, name);
+			return 0;
+		}
 	}
 
-	if (field != NULL && streq(field, "filename")) {
+	if (field == NULL)
+		print_line("filename", filename);
+	else if (streq(field, "filename")) {
 		print_line(NULL, filename);
 		return 0;
-	} else if (field == NULL) {
-		print_line("filename", filename);
 	}
 
 	err = kmod_module_get_info(mod, &list);
@@ -225,8 +227,11 @@ static int modinfo_do(struct kmod_module *mod)
 		if (field != NULL) {
 			if (streq(field, key)) {
 				print_line(NULL, value);
+				goto end;
 			}
-		} else if (streq(key, "parm")) {
+			continue;
+		}
+		if (streq(key, "parm")) {
 			err = process_parm(parm_desc, value, &params);
 			if (err < 0)
 				goto end;
