@@ -157,19 +157,18 @@ end:
 
 static int modinfo_do(struct kmod_module *mod)
 {
+	const enum kmod_module_initstate state = kmod_module_get_initstate(mod);
+	const bool is_builtin = state == KMOD_MODULE_BUILTIN;
+	const char *filename = is_builtin ? "(builtin)" : kmod_module_get_path(mod);
 	struct kmod_list *l, *list = NULL;
 	struct param *params = NULL;
-	int err, is_builtin;
-	const char *filename = kmod_module_get_path(mod);
-
-	is_builtin = (filename == NULL);
+	int err;
 
 	if (is_builtin) {
 		if (field == NULL)
 			printf("%-16s%s%c", "name:", kmod_module_get_name(mod), separator);
 		else if (field != NULL && streq(field, "name"))
 			printf("%s%c", kmod_module_get_name(mod), separator);
-		filename = "(builtin)";
 	}
 
 	if (field != NULL && streq(field, "filename")) {
