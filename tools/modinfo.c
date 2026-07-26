@@ -179,6 +179,8 @@ static int modinfo_do(struct kmod_module *mod)
 	const enum kmod_module_initstate state = kmod_module_get_initstate(mod);
 	const bool is_builtin = state == KMOD_MODULE_BUILTIN;
 	const char *filename = is_builtin ? "(builtin)" : kmod_module_get_path(mod);
+	const bool print_all = field == NULL;
+	const bool print_parm = !print_all && streq(field, "parm");
 	struct kmod_list *l, *list = NULL;
 	struct param *params = NULL;
 	int err;
@@ -186,7 +188,7 @@ static int modinfo_do(struct kmod_module *mod)
 	/* TODO: align builtin vs not wrt listing "name:" via kmod_module_get_info() */
 	if (is_builtin) {
 		const char *name = kmod_module_get_name(mod);
-		if (field == NULL)
+		if (print_all)
 			print_line("name", name);
 		else if (streq(field, "name")) {
 			print_line(NULL, name);
@@ -194,7 +196,7 @@ static int modinfo_do(struct kmod_module *mod)
 		}
 	}
 
-	if (field == NULL)
+	if (print_all)
 		print_line("filename", filename);
 	else if (streq(field, "filename")) {
 		print_line(NULL, filename);
@@ -215,7 +217,7 @@ static int modinfo_do(struct kmod_module *mod)
 		return err;
 	}
 
-	if (field != NULL && streq(field, "parm")) {
+	if (print_parm) {
 		err = modinfo_params_do(list);
 		goto end;
 	}
@@ -224,7 +226,7 @@ static int modinfo_do(struct kmod_module *mod)
 		const char *key = kmod_module_info_get_key(l);
 		const char *value = kmod_module_info_get_value(l);
 
-		if (field != NULL) {
+		if (!print_all) {
 			if (streq(field, key)) {
 				print_line(NULL, value);
 				goto end;
@@ -244,7 +246,7 @@ static int modinfo_do(struct kmod_module *mod)
 		}
 	}
 
-	if (field != NULL)
+	if (!print_all)
 		goto end;
 
 	while (params != NULL) {
