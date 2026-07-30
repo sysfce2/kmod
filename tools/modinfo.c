@@ -37,20 +37,15 @@ enum parm_info {
 	parm_type,
 };
 
-static int add_param(const char *name, size_t namelen, enum parm_info parm_info,
-		     const char *value, struct param *params, unsigned int params_count)
+static void add_param(const char *name, int namelen, enum parm_info parm_info,
+		      const char *value, struct param *params, unsigned int params_count)
 {
-	struct param *it;
-
-	if (namelen > INT_MAX)
-		return -EINVAL;
-
 	/* We are guaranteed to have a match, or at least one empty entry */
 	for (unsigned int i = 0; i < params_count; i++) {
-		it = &params[i];
+		struct param *it = &params[i];
 
-		if (it->name != NULL && (it->namelen != (int)namelen ||
-					 memcmp(it->name, name, namelen) != 0)) {
+		if (it->name != NULL &&
+		    (it->namelen != namelen || memcmp(it->name, name, namelen) != 0)) {
 			continue;
 		}
 
@@ -67,37 +62,28 @@ static int add_param(const char *name, size_t namelen, enum parm_info parm_info,
 		}
 		break;
 	}
-
-	return 0;
 }
 
-static int process_parm(enum parm_info parm_info, const char *value, struct param *params,
-			unsigned int params_count)
+static void process_parm(enum parm_info parm_info, const char *value,
+			 struct param *params, unsigned int params_count)
 {
 	const char *name;
-	size_t namelen;
+	int namelen;
 	const char *colon = strchr(value, ':');
-	int ret;
 
 	if (colon == NULL) {
 		ERR("Missing ':' in value \"%s\"\n", value);
-		return 0;
+		return;
 	}
 
 	if (colon == value) {
 		ERR("Missing param name in value \"%s\"\n", value);
-		return 0;
+		return;
 	}
 
 	name = value;
-	namelen = colon - value;
-	ret = add_param(name, namelen, parm_info, colon + 1, params, params_count);
-	if (ret < 0) {
-		ERR("Unable to add parameter: %s\n", strerror(-ret));
-		return -ENOMEM;
-	}
-
-	return 0;
+	namelen = (int)(colon - value);
+	add_param(name, namelen, parm_info, colon + 1, params, params_count);
 }
 
 static void print_line(const char *key, const char *value)
@@ -221,13 +207,17 @@ static int modinfo_do(struct kmod_module *mod)
 			continue;
 		}
 		if (streq(key, "parm")) {
-			err = process_parm(parm_desc, value, params, params_count);
-			if (err < 0)
-				goto end;
+			if (strlen(value) > INT_MAX) {
+				ERR("%s's value is longer than INT_MAX\n", "parm");
+				continue;
+			}
+			process_parm(parm_desc, value, params, params_count);
 		} else if (streq(key, "parmtype")) {
-			err = process_parm(parm_type, value, params, params_count);
-			if (err < 0)
-				goto end;
+			if (strlen(value) > INT_MAX) {
+				ERR("%s's value is too long\n", "parmtype");
+				continue;
+			}
+			process_parm(parm_type, value, params, params_count);
 		} else {
 			if (print_all)
 				print_line(key, value);
