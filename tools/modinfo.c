@@ -151,10 +151,7 @@ static int modinfo_params_do(const struct kmod_list *list)
 		struct param *p = params;
 		params = p->next;
 
-		if (p->desc == NULL)
-			printf("%.*s: (%.*s)%c", p->namelen, p->name, p->typelen, p->type,
-			       separator);
-		else if (p->type != NULL)
+		if (p->type != NULL)
 			printf("%.*s:%.*s (%.*s)%c", p->namelen, p->name, p->desclen,
 			       p->desc, p->typelen, p->type, separator);
 		else
@@ -253,10 +250,7 @@ static int modinfo_do(struct kmod_module *mod)
 		struct param *p = params;
 		params = p->next;
 
-		if (p->desc == NULL)
-			printf("%-16s%.*s: (%.*s)%c", "parm:", p->namelen, p->name,
-			       p->typelen, p->type, separator);
-		else if (p->type != NULL)
+		if (p->type != NULL)
 			printf("%-16s%.*s:%.*s (%.*s)%c", "parm:", p->namelen, p->name,
 			       p->desclen, p->desc, p->typelen, p->type, separator);
 		else
