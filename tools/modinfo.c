@@ -30,8 +30,6 @@ struct param {
 	const char *desc;
 	const char *type;
 	int namelen;
-	int desclen;
-	int typelen;
 };
 
 enum parm_info {
@@ -42,10 +40,9 @@ enum parm_info {
 static int add_param(const char *name, size_t namelen, enum parm_info parm_info,
 		     const char *value, struct param *params, unsigned int params_count)
 {
-	size_t valuelen = strlen(value);
 	struct param *it;
 
-	if (namelen > INT_MAX || valuelen > INT_MAX)
+	if (namelen > INT_MAX)
 		return -EINVAL;
 
 	/* We are guaranteed to have a match, or at least one empty entry */
@@ -63,11 +60,9 @@ static int add_param(const char *name, size_t namelen, enum parm_info parm_info,
 		switch (parm_info) {
 		case (parm_desc):
 			it->desc = value;
-			it->desclen = (int)valuelen;
 			break;
 		case (parm_type):
 			it->type = value;
-			it->typelen = (int)valuelen;
 			break;
 		}
 		break;
@@ -245,11 +240,11 @@ static int modinfo_do(struct kmod_module *mod)
 			continue;
 
 		if (p->type != NULL)
-			sprintf(sbuf, "%.*s:%.*s (%.*s)", p->namelen, p->name, p->desclen,
-				p->desc, p->typelen, p->type);
+			sprintf(sbuf, "%.*s:%s (%s)", p->namelen, p->name,
+				p->desc ? p->desc : "", p->type);
 		else
-			sprintf(sbuf, "%.*s:%.*s", p->namelen, p->name, p->desclen,
-				p->desc);
+			sprintf(sbuf, "%.*s:%s", p->namelen, p->name,
+				p->desc ? p->desc : "");
 
 		print_line(print_parm ? NULL : "parm", sbuf);
 	}
