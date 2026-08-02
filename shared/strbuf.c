@@ -39,10 +39,12 @@ static bool strbuf_reserve_extra(struct strbuf *buf, size_t n)
 	if (n < buf->size - buf->used)
 		return true;
 
-	if (uaddsz_overflow(buf->used, n, &n) || n >= SIZE_MAX - BUF_STEP)
+	/* Reserve extra space for the \0 byte */
+	if (uaddsz_overflow(n, 1, &n) || uaddsz_overflow(buf->used, n, &n) ||
+	    n > SIZE_MAX - BUF_STEP)
 		return false;
 
-	if (++n % BUF_STEP)
+	if (n % BUF_STEP)
 		n = ((n / BUF_STEP) + 1) * BUF_STEP;
 
 	return buf_realloc(buf, n);
