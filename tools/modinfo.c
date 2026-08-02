@@ -110,6 +110,23 @@ static int process_parm(enum parm_info parm_info, const char *value, struct para
 	return 0;
 }
 
+static void print_line(const char *key, const char *value)
+{
+	if (key == NULL) {
+		printf("%s%c", value, separator);
+		return;
+	}
+
+	if (separator == '\0') {
+		printf("%s=%s%c", key, value, separator);
+	} else {
+		size_t keylen = strlen(key);
+		if (keylen > 15)
+			keylen = 15;
+		printf("%s:%-*s%s%c", key, 15 - (int)keylen, "", value, separator);
+	}
+}
+
 static int modinfo_params_do(const struct kmod_list *list)
 {
 	const struct kmod_list *l;
@@ -169,17 +186,17 @@ static int modinfo_do(struct kmod_module *mod)
 	/* TODO: align builtin vs not wrt listing "name:" via kmod_module_get_info() */
 	if (is_builtin) {
 		if (field == NULL)
-			printf("%-16s%s%c", "name:", kmod_module_get_name(mod), separator);
+			print_line("name", kmod_module_get_name(mod));
 		else if (field != NULL && streq(field, "name"))
-			printf("%s%c", kmod_module_get_name(mod), separator);
+			print_line(NULL, kmod_module_get_name(mod));
 		filename = "(builtin)";
 	}
 
 	if (field != NULL && streq(field, "filename")) {
-		printf("%s%c", filename, separator);
+		print_line(NULL, filename);
 		return 0;
 	} else if (field == NULL) {
-		printf("%-16s%s%c", "filename:", filename, separator);
+		print_line("filename", filename);
 	}
 
 	err = kmod_module_get_info(mod, &list);
@@ -207,8 +224,7 @@ static int modinfo_do(struct kmod_module *mod)
 
 		if (field != NULL) {
 			if (streq(field, key)) {
-				/* filtered output contains no key, just value */
-				printf("%s%c", value, separator);
+				print_line(NULL, value);
 			}
 		} else if (streq(key, "parm")) {
 			err = process_parm(parm_desc, value, &params);
@@ -218,13 +234,8 @@ static int modinfo_do(struct kmod_module *mod)
 			err = process_parm(parm_type, value, &params);
 			if (err < 0)
 				goto end;
-		} else if (separator == '\0') {
-			printf("%s=%s%c", key, value, separator);
 		} else {
-			size_t keylen = strlen(key);
-			if (keylen > 15)
-				keylen = 15;
-			printf("%s:%-*s%s%c", key, 15 - (int)keylen, "", value, separator);
+			print_line(key, value);
 		}
 	}
 
