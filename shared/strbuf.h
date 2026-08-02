@@ -83,8 +83,7 @@ void strbuf_popchar(struct strbuf *buf);
  *
  * Example:
  *
- * 	struct strbuf buf;
- * 	strbuf_init(&buf);
+ * 	DECLARE_STRBUF(buf);
  * 	strbuf_pushchars(&buf, "foobar");
  * 	strbuf_popchars(&buf, 5);
  *

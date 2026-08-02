@@ -475,11 +475,9 @@ static const char *TEXT =
 
 static int test_strbuf_pushchar(void)
 {
-	_cleanup_strbuf_ struct strbuf buf;
+	DECLARE_STRBUF(buf);
 	const char *result;
 	const char *c;
-
-	strbuf_init(&buf);
 
 	for (c = TEXT; *c != '\0'; c++)
 		strbuf_pushchar(&buf, *c);
@@ -494,13 +492,12 @@ DEFINE_TEST(test_strbuf_pushchar, .description = "test strbuf_{pushchar, str, st
 
 static int test_strbuf_pushchars(void)
 {
-	_cleanup_strbuf_ struct strbuf buf;
+	DECLARE_STRBUF(buf);
 	const char *result;
 	char *saveptr = NULL, *str;
 	const char *c;
 	size_t lastwordlen = 0;
 
-	strbuf_init(&buf);
 	str = strdup(TEXT);
 	for (c = strtok_r(str, " ", &saveptr); c != NULL;
 	     c = strtok_r(NULL, " ", &saveptr)) {
@@ -589,9 +586,8 @@ DEFINE_TEST(test_strbuf_with_heap, .description = "test strbuf with heap only");
 
 static int test_strbuf_pushmem(void)
 {
-	_cleanup_strbuf_ struct strbuf buf;
+	DECLARE_STRBUF(buf);
 
-	strbuf_init(&buf);
 	strbuf_pushmem(&buf, "", 0);
 	strbuf_pushmem(&buf, TEXT, strlen(TEXT) + 1);
 
@@ -603,9 +599,8 @@ DEFINE_TEST(test_strbuf_pushmem, .description = "test strbuf_reserve");
 
 static int test_strbuf_used(void)
 {
-	_cleanup_strbuf_ struct strbuf buf;
+	DECLARE_STRBUF(buf);
 
-	strbuf_init(&buf);
 	TS_ASSERT(strbuf_used(&buf) == 0);
 
 	strbuf_pushchars(&buf, TEXT);
@@ -652,9 +647,8 @@ DEFINE_TEST(test_strbuf_reserve_extra, .description = "test strbuf_reserve_extra
 
 static int test_strbuf_shrink_to(void)
 {
-	_cleanup_strbuf_ struct strbuf buf;
+	DECLARE_STRBUF(buf);
 
-	strbuf_init(&buf);
 	strbuf_shrink_to(&buf, 0);
 	TS_ASSERT(strbuf_used(&buf) == 0);
 
@@ -668,9 +662,8 @@ DEFINE_TEST(test_strbuf_shrink_to, .description = "test strbuf_shrink_to");
 
 static int xfail_strbuf_shrink_to(void)
 {
-	_cleanup_strbuf_ struct strbuf buf;
+	DECLARE_STRBUF(buf);
 
-	strbuf_init(&buf);
 	strbuf_pushchar(&buf, '/');
 
 	/* This should crash on assert */
