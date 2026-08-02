@@ -31,6 +31,9 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + _array_size_chk(arr))
 
+#define _ALIGN_MASK(x, _MASK) (((x) + (_MASK)) & ~(_MASK))
+#define ALIGN(x, B) _ALIGN_MASK(x, (typeof(x))(B) - 1)
+
 #define XSTRINGIFY(x) #x
 #define STRINGIFY(x) XSTRINGIFY(x)
 

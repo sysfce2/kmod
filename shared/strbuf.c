@@ -10,8 +10,9 @@
 #include <string.h>
 #include <sys/param.h>
 
-#include "util.h"
+#include "macro.h"
 #include "strbuf.h"
+#include "util.h"
 
 #define BUF_STEP 128
 
@@ -42,8 +43,7 @@ static bool strbuf_reserve_extra(struct strbuf *buf, size_t n)
 	    n > SIZE_MAX - BUF_STEP)
 		return false;
 
-	if (n % BUF_STEP)
-		n = ((n / BUF_STEP) + 1) * BUF_STEP;
+	n = ALIGN(n, BUF_STEP);
 
 	return buf_realloc(buf, n);
 }
