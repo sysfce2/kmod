@@ -626,6 +626,30 @@ static int test_strbuf_used(void)
 }
 DEFINE_TEST(test_strbuf_used, .description = "test strbuf_used");
 
+static int test_strbuf_reserve_extra(void)
+{
+	DECLARE_STRBUF(buf);
+	const char *str;
+	size_t size;
+
+	strbuf_reserve_extra(&buf, strlen(TEXT));
+	size = buf.size;
+	str = buf.bytes;
+	TS_ASSERT(size >= strlen(TEXT) + 1);
+
+	strbuf_pushchars(&buf, TEXT);
+	TS_ASSERT(size == buf.size);
+	TS_ASSERT(str == buf.bytes);
+
+	strbuf_clear(&buf);
+	strbuf_pushchars(&buf, TEXT);
+	TS_ASSERT(size == buf.size);
+	TS_ASSERT(str == buf.bytes);
+
+	return 0;
+}
+DEFINE_TEST(test_strbuf_reserve_extra, .description = "test strbuf_reserve_extra");
+
 static int test_strbuf_shrink_to(void)
 {
 	_cleanup_strbuf_ struct strbuf buf;

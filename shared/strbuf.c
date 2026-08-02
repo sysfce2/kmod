@@ -33,7 +33,7 @@ static bool buf_realloc(struct strbuf *buf, size_t sz)
 	return true;
 }
 
-static bool strbuf_reserve_extra(struct strbuf *buf, size_t n)
+bool strbuf_reserve_extra(struct strbuf *buf, size_t n)
 {
 	if (n < buf->size - buf->used)
 		return true;
