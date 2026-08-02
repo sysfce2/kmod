@@ -28,19 +28,19 @@ static const char *field;
 struct param {
 	struct param *next;
 	const char *name;
-	const char *param;
+	const char *desc;
 	const char *type;
 	int namelen;
-	int paramlen;
+	int desclen;
 	int typelen;
 };
 
-static int add_param(const char *name, size_t namelen, const char *param, size_t paramlen,
+static int add_param(const char *name, size_t namelen, const char *desc, size_t desclen,
 		     const char *type, size_t typelen, struct param **list)
 {
 	struct param *it;
 
-	if (namelen > INT_MAX || paramlen > INT_MAX || typelen > INT_MAX) {
+	if (namelen > INT_MAX || desclen > INT_MAX || typelen > INT_MAX) {
 		return -EINVAL;
 	}
 
@@ -57,15 +57,15 @@ static int add_param(const char *name, size_t namelen, const char *param, size_t
 		*list = it;
 		it->name = name;
 		it->namelen = namelen;
-		it->param = NULL;
+		it->desc = NULL;
 		it->type = NULL;
-		it->paramlen = 0;
+		it->desclen = 0;
 		it->typelen = 0;
 	}
 
-	if (param != NULL) {
-		it->param = param;
-		it->paramlen = paramlen;
+	if (desc != NULL) {
+		it->desc = desc;
+		it->desclen = desclen;
 	}
 
 	if (type != NULL) {
@@ -78,8 +78,8 @@ static int add_param(const char *name, size_t namelen, const char *param, size_t
 
 static int process_parm(const char *key, const char *value, struct param **params)
 {
-	const char *name, *param, *type;
-	size_t namelen, paramlen, typelen;
+	const char *name, *desc, *type;
+	size_t namelen, desclen, typelen;
 	const char *colon = strchr(value, ':');
 	int ret;
 
@@ -96,18 +96,18 @@ static int process_parm(const char *key, const char *value, struct param **param
 	name = value;
 	namelen = colon - value;
 	if (streq(key, "parm")) {
-		param = colon + 1;
-		paramlen = strlen(param);
+		desc = colon + 1;
+		desclen = strlen(desc);
 		type = NULL;
 		typelen = 0;
 	} else {
-		param = NULL;
-		paramlen = 0;
+		desc = NULL;
+		desclen = 0;
 		type = colon + 1;
 		typelen = strlen(type);
 	}
 
-	ret = add_param(name, namelen, param, paramlen, type, typelen, params);
+	ret = add_param(name, namelen, desc, desclen, type, typelen, params);
 	if (ret < 0) {
 		ERR("Unable to add parameter: %s\n", strerror(-ret));
 		return -ENOMEM;
@@ -137,14 +137,14 @@ static int modinfo_params_do(const struct kmod_list *list)
 		struct param *p = params;
 		params = p->next;
 
-		if (p->param == NULL)
+		if (p->desc == NULL)
 			printf("%.*s: (%.*s)%c", p->namelen, p->name, p->typelen, p->type,
 			       separator);
 		else if (p->type != NULL)
-			printf("%.*s:%.*s (%.*s)%c", p->namelen, p->name, p->paramlen,
-			       p->param, p->typelen, p->type, separator);
+			printf("%.*s:%.*s (%.*s)%c", p->namelen, p->name, p->desclen,
+			       p->desc, p->typelen, p->type, separator);
 		else
-			printf("%.*s:%.*s%c", p->namelen, p->name, p->paramlen, p->param,
+			printf("%.*s:%.*s%c", p->namelen, p->name, p->desclen, p->desc,
 			       separator);
 
 		free(p);
@@ -234,15 +234,15 @@ static int modinfo_do(struct kmod_module *mod)
 		struct param *p = params;
 		params = p->next;
 
-		if (p->param == NULL)
+		if (p->desc == NULL)
 			printf("%-16s%.*s: (%.*s)%c", "parm:", p->namelen, p->name,
 			       p->typelen, p->type, separator);
 		else if (p->type != NULL)
 			printf("%-16s%.*s:%.*s (%.*s)%c", "parm:", p->namelen, p->name,
-			       p->paramlen, p->param, p->typelen, p->type, separator);
+			       p->desclen, p->desc, p->typelen, p->type, separator);
 		else
 			printf("%-16s%.*s:%.*s%c", "parm:", p->namelen, p->name,
-			       p->paramlen, p->param, separator);
+			       p->desclen, p->desc, separator);
 
 		free(p);
 	}
