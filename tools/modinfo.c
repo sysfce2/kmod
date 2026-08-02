@@ -88,6 +88,11 @@ static int process_parm(const char *key, const char *value, struct param **param
 		return 0;
 	}
 
+	if (colon == value) {
+		ERR("Missing param name in value \"%s\"\n", value);
+		return 0;
+	}
+
 	name = value;
 	namelen = colon - value;
 	if (streq(key, "parm")) {
