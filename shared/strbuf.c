@@ -19,13 +19,11 @@ static bool buf_realloc(struct strbuf *buf, size_t sz)
 {
 	void *tmp = realloc(buf->heap ? buf->bytes : NULL, sz);
 
-	if (sz > 0) {
-		if (tmp == NULL)
-			return false;
+	if (tmp == NULL)
+		return false;
 
-		if (!buf->heap)
-			memcpy(tmp, buf->bytes, MIN(buf->size, sz));
-	}
+	if (!buf->heap)
+		memcpy(tmp, buf->bytes, MIN(buf->size, sz));
 
 	buf->heap = true;
 	buf->bytes = tmp;
