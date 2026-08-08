@@ -84,7 +84,7 @@ int alias_normalize(const char *alias, char buf[static PATH_MAX], size_t *len)
 				i++;
 			}
 			if (i >= PATH_MAX - 1)
-                		return -EINVAL;
+				return -EINVAL;
 
 			if (alias[i] != ']')
 				return -EINVAL;

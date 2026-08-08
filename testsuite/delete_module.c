@@ -192,8 +192,7 @@ long delete_module(const char *modname, _maybe_unused_ unsigned int flags)
 	if (mod == NULL)
 		return 0;
 
-	if (!strbuf_pushchars(&buf, "/sys/module/") ||
-	    !strbuf_pushchars(&buf, modname)) {
+	if (!strbuf_pushchars(&buf, "/sys/module/") || !strbuf_pushchars(&buf, modname)) {
 		errno = ENOMEM;
 		return -1;
 	}
